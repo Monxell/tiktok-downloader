@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
-import { Download, Clipboard, AlertCircle } from "lucide-react";
+import { Download, Clipboard, AlertCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
@@ -81,42 +81,54 @@ const Index = () => {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-background px-4 pb-12 pt-4 md:px-6"
+      className="min-h-screen bg-background px-4 pb-12 pt-2 md:px-6"
     >
       <div className="mx-auto max-w-2xl">
         <Header />
 
-        {/* Main Form */}
+        {/* Main Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-          className="mt-4 md:mt-8"
+          transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
+          className="mt-2 rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-7"
         >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-foreground bg-primary shadow-[3px_3px_0px_0px_hsl(var(--foreground))]">
+              <Link2 className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-foreground">Unduh Video</h2>
+              <p className="text-xs font-medium text-muted-foreground">
+                Tanpa watermark, gratis & cepat
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col gap-4 md:flex-row">
+            <div className="flex flex-col gap-3 md:flex-row">
               <div className="relative flex-1">
                 <Input
                   type="text"
                   placeholder="Tempel link TikTok di sini..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="h-12 border-2 border-foreground bg-background pr-12 text-base font-medium shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-12 rounded-xl border-2 border-foreground bg-background pr-12 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <button
                   type="button"
                   onClick={handlePaste}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border-2 border-foreground bg-secondary p-2 text-foreground transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border-2 border-foreground bg-secondary p-2 text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   aria-label="Tempel dari clipboard"
                 >
-                  <Clipboard className="h-5 w-5" />
+                  <Clipboard className="h-4 w-4" />
                 </button>
               </div>
               <Button
                 type="submit"
                 size="lg"
                 disabled={loading}
-                className="h-12 border-2 border-foreground bg-primary px-8 font-bold uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
+                className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
               >
                 <Download className="mr-2 h-5 w-5" />
                 {loading ? "Memproses..." : "Unduh"}
@@ -125,16 +137,11 @@ const Index = () => {
           </form>
 
           {/* Instructions */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 border-2 border-foreground bg-secondary p-4 text-center shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
-          >
-            <p className="text-sm font-semibold text-foreground">
+          <div className="mt-5 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/30 p-3 text-center">
+            <p className="text-xs font-semibold text-muted-foreground">
               Tempel link video atau slideshow TikTok untuk mengunduh tanpa watermark
             </p>
-          </motion.div>
+          </div>
         </motion.div>
 
         {/* Error Message */}
@@ -144,9 +151,11 @@ const Index = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mt-6 flex items-center gap-3 border-2 border-foreground bg-destructive/20 p-4 font-bold text-destructive shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
+              className="mt-5 flex items-center gap-3 rounded-2xl border-2 border-foreground bg-destructive/15 p-4 font-bold text-destructive shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
             >
-              <AlertCircle className="h-6 w-6 flex-shrink-0" />
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border-2 border-foreground bg-destructive shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+                <AlertCircle className="h-4 w-4 text-white" />
+              </div>
               <p className="text-sm">{error}</p>
             </motion.div>
           )}
@@ -157,12 +166,14 @@ const Index = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-8"
+            className="mt-6"
           >
-            <LoadingSpinner />
-            <p className="mt-3 text-center text-sm font-bold uppercase tracking-wide text-muted-foreground">
-              Mengambil data video...
-            </p>
+            <div className="rounded-2xl border-2 border-foreground bg-card p-6 shadow-[5px_5px_0px_0px_hsl(var(--foreground))]">
+              <LoadingSpinner />
+              <p className="mt-3 text-center text-sm font-black uppercase tracking-wide text-muted-foreground">
+                Mengambil data video...
+              </p>
+            </div>
           </motion.div>
         )}
 
@@ -173,7 +184,7 @@ const Index = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="mt-6"
+              className="mt-5"
             >
               <DownloadCard result={result} />
             </motion.div>
@@ -185,13 +196,11 @@ const Index = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-12 text-center"
+          className="mt-10 text-center"
         >
-          <div className="inline-block border-2 border-foreground bg-card px-4 py-2 shadow-[3px_3px_0px_0px_hsl(var(--foreground))]">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Unduh video TikTok tanpa watermark secara gratis
-            </p>
-          </div>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Unduh video TikTok tanpa watermark secara gratis
+          </p>
         </motion.footer>
       </div>
     </div>

@@ -66,15 +66,6 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      boxShadow: {
-        'brutal': '4px 4px 0px 0px hsl(var(--foreground))',
-        'brutal-sm': '3px 3px 0px 0px hsl(var(--foreground))',
-        'brutal-lg': '6px 6px 0px 0px hsl(var(--foreground))',
-        'brutal-xl': '8px 8px 0px 0px hsl(var(--foreground))',
-        'brutal-hover': '2px 2px 0px 0px hsl(var(--foreground))',
-        'brutal-active': '0px 0px 0px 0px hsl(var(--foreground))',
-        'brutal-inset': 'inset 4px 4px 0px 0px hsl(var(--foreground))',
-      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -84,20 +75,20 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "spin-brutal": {
+        "spin-slow": {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
         },
-        "bounce-brutal": {
+        "bounce-soft": {
           "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-8px)" },
+          "50%": { transform: "translateY(-6px)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "spin-brutal": "spin-brutal 1s linear infinite",
-        "bounce-brutal": "bounce-brutal 0.6s ease-in-out infinite",
+        "spin-slow": "spin-slow 2s linear infinite",
+        "bounce-soft": "bounce-soft 1s ease-in-out infinite",
       },
     },
   },

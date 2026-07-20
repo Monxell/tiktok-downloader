@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TikTokResult } from "@/lib/tiktok";
 
@@ -26,12 +26,12 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="w-full border-2 border-foreground bg-card p-4 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
+      className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+      <div className="flex flex-col gap-5 md:flex-row md:gap-6">
         {/* Preview */}
         <div className="flex-shrink-0">
-          <div className="relative mx-auto h-48 w-32 overflow-hidden border-2 border-foreground bg-muted shadow-[3px_3px_0px_0px_hsl(var(--foreground))] md:h-56 md:w-40">
+          <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
             {result.cover ? (
               <img
                 src={result.cover}
@@ -50,7 +50,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               )}
             </div>
             {/* HD Badge */}
-            <div className="absolute right-1 top-1 flex items-center gap-0.5 border-2 border-foreground bg-primary px-1.5 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+            <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
               <Sparkles className="h-3 w-3" />
               HD
             </div>
@@ -60,10 +60,13 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         {/* Info & Buttons */}
         <div className="flex flex-1 flex-col gap-4">
           <div>
-            <p className="inline-block border-2 border-foreground bg-primary px-2 py-0.5 text-sm font-black text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
-              @{result.author}
-            </p>
-            <p className="mt-2 line-clamp-2 text-sm font-semibold text-foreground md:text-base">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-foreground bg-primary shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+                <User className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+              <p className="text-sm font-black text-primary">@{result.author}</p>
+            </div>
+            <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">
               {result.desc}
             </p>
           </div>
@@ -74,11 +77,11 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               <Button
                 size="lg"
                 onClick={() => handleDownload(result.video!, `tiktok_${Date.now()}.mp4`)}
-                className="h-11 w-full border-2 border-foreground bg-primary font-bold uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Download className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Video Tanpa WM</span>
-                <span className="sm:hidden">Tanpa Watermark</span>
+                <span className="hidden sm:inline">Tanpa WM</span>
+                <span className="sm:hidden">No WM</span>
               </Button>
             )}
 
@@ -86,11 +89,11 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               <Button
                 size="lg"
                 onClick={() => handleDownload(result.wm!, `tiktok_wm_${Date.now()}.mp4`)}
-                className="h-11 w-full border-2 border-foreground bg-secondary font-bold uppercase tracking-wide text-secondary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-secondary font-black uppercase tracking-wide text-secondary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Video className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Dengan WM</span>
-                <span className="sm:hidden">Watermark</span>
+                <span className="sm:hidden">WM</span>
               </Button>
             )}
 
@@ -98,7 +101,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               <Button
                 size="lg"
                 onClick={() => handleDownload(result.audio!, `tiktok_audio_${Date.now()}.mp3`)}
-                className="h-11 w-full border-2 border-foreground bg-accent font-bold uppercase tracking-wide text-accent-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-accent font-black uppercase tracking-wide text-accent-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Music className="mr-2 h-4 w-4" />
                 Audio
@@ -108,10 +111,15 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
 
           {/* Slideshow Images */}
           {isSlideshow && (
-            <div className="mt-2">
-              <p className="mb-3 inline-block border-2 border-foreground bg-secondary px-2 py-0.5 text-sm font-bold uppercase text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
-                Gambar Slideshow ({result.images.length})
-              </p>
+            <div className="mt-1">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md border-2 border-foreground bg-primary shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+                  <Image className="h-3 w-3 text-primary-foreground" />
+                </div>
+                <p className="text-sm font-black uppercase text-foreground">
+                  Slideshow ({result.images.length})
+                </p>
+              </div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                 {result.images.slice(0, 10).map((img, index) => (
                   <motion.button
@@ -120,15 +128,15 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => handleDownload(img, `tiktok_slide_${index + 1}.jpg`)}
-                    className="group relative aspect-square overflow-hidden border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                    className="group relative aspect-square overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   >
                     <img
                       src={img}
                       alt={`Slide ${index + 1}`}
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center border-2 border-foreground bg-primary/90 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Download className="h-6 w-6 text-primary-foreground" />
+                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-primary/90 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Download className="h-5 w-5 text-primary-foreground" />
                     </div>
                   </motion.button>
                 ))}
