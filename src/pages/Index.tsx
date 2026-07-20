@@ -23,7 +23,7 @@ const Index = () => {
       gsap.fromTo(
         containerRef.current,
         { opacity: 0 },
-        { opacity: 1, duration: 0.6, ease: "power2.out" }
+        { opacity: 1, duration: 0.5, ease: "power2.out" }
       );
     }
   }, []);
@@ -90,23 +90,23 @@ const Index = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
           className="mt-4 md:mt-8"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row">
+            <div className="flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Input
                   type="text"
                   placeholder="Tempel link TikTok di sini..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="pr-12"
+                  className="h-12 border-2 border-foreground bg-background pr-12 text-base font-medium shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <button
                   type="button"
                   onClick={handlePaste}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border-2 border-foreground bg-secondary p-2 text-foreground transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   aria-label="Tempel dari clipboard"
                 >
                   <Clipboard className="h-5 w-5" />
@@ -114,12 +114,11 @@ const Index = () => {
               </div>
               <Button
                 type="submit"
-                variant={loading ? "secondary" : "glow"}
-                size="xl"
+                size="lg"
                 disabled={loading}
-                className="w-full md:w-auto"
+                className="h-12 border-2 border-foreground bg-primary px-8 font-bold uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
               >
-                <Download className="h-5 w-5" />
+                <Download className="mr-2 h-5 w-5" />
                 {loading ? "Memproses..." : "Unduh"}
               </Button>
             </div>
@@ -129,10 +128,10 @@ const Index = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="mt-6 rounded-lg border border-border bg-card/50 p-4 text-center"
+            transition={{ delay: 0.3 }}
+            className="mt-6 border-2 border-foreground bg-secondary p-4 text-center shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
           >
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm font-semibold text-foreground">
               Tempel link video atau slideshow TikTok untuk mengunduh tanpa watermark
             </p>
           </motion.div>
@@ -145,9 +144,9 @@ const Index = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mt-6 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive"
+              className="mt-6 flex items-center gap-3 border-2 border-foreground bg-destructive/20 p-4 font-bold text-destructive shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
             >
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <AlertCircle className="h-6 w-6 flex-shrink-0" />
               <p className="text-sm">{error}</p>
             </motion.div>
           )}
@@ -161,7 +160,7 @@ const Index = () => {
             className="mt-8"
           >
             <LoadingSpinner />
-            <p className="mt-2 text-center text-sm text-muted-foreground">
+            <p className="mt-3 text-center text-sm font-bold uppercase tracking-wide text-muted-foreground">
               Mengambil data video...
             </p>
           </motion.div>
@@ -185,12 +184,14 @@ const Index = () => {
         <motion.footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.5 }}
           className="mt-12 text-center"
         >
-          <p className="text-xs text-muted-foreground">
-            Unduh video TikTok tanpa watermark secara gratis
-          </p>
+          <div className="inline-block border-2 border-foreground bg-card px-4 py-2 shadow-[3px_3px_0px_0px_hsl(var(--foreground))]">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Unduh video TikTok tanpa watermark secara gratis
+            </p>
+          </div>
         </motion.footer>
       </div>
     </div>

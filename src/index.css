@@ -2,70 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
-    --background: 140 10% 99%;
-    --foreground: 167 18% 25%;
+    /* Neo Brutalism - Light Mode (Yellow Accent) */
+    --background: 60 100% 99%;
+    --foreground: 0 0% 0%;
 
-    --card: 140 10% 96%;
-    --card-foreground: 167 18% 25%;
+    --card: 60 100% 97%;
+    --card-foreground: 0 0% 0%;
 
-    --popover: 140 10% 96%;
-    --popover-foreground: 167 18% 25%;
+    --popover: 60 100% 97%;
+    --popover-foreground: 0 0% 0%;
 
-    --primary: 167 18% 43%;
-    --primary-foreground: 140 10% 99%;
+    --primary: 50 100% 50%;
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 134 27% 60%;
-    --secondary-foreground: 167 18% 20%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 0%;
 
-    --muted: 90 31% 76%;
-    --muted-foreground: 167 18% 35%;
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 134 27% 60%;
-    --accent-foreground: 167 18% 20%;
+    --accent: 50 100% 50%;
+    --accent-foreground: 0 0% 0%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 134 20% 80%;
-    --input: 134 20% 90%;
-    --ring: 167 18% 43%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 50 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0px;
 
-    --sidebar-background: 140 10% 96%;
-    --sidebar-foreground: 167 18% 25%;
-    --sidebar-primary: 167 18% 43%;
-    --sidebar-primary-foreground: 140 10% 99%;
-    --sidebar-accent: 134 27% 60%;
-    --sidebar-accent-foreground: 167 18% 20%;
-    --sidebar-border: 134 20% 80%;
-    --sidebar-ring: 167 18% 43%;
+    --sidebar-background: 60 100% 97%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 50 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 90%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 0%;
+    --sidebar-ring: 50 100% 50%;
   }
 
   .dark {
-    --background: 167 18% 8%;
-    --foreground: 140 10% 95%;
-    --card: 167 18% 12%;
-    --card-foreground: 140 10% 95%;
-    --popover: 167 18% 12%;
-    --popover-foreground: 140 10% 95%;
-    --primary: 134 27% 60%;
-    --primary-foreground: 167 18% 10%;
-    --secondary: 167 18% 25%;
-    --secondary-foreground: 140 10% 95%;
-    --muted: 167 18% 20%;
-    --muted-foreground: 134 20% 60%;
-    --accent: 134 27% 60%;
-    --accent-foreground: 167 18% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 167 18% 20%;
-    --input: 167 18% 15%;
-    --ring: 134 27% 60%;
+    /* Neo Brutalism - Dark Mode (Purple Accent) */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 270 100% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 270 100% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 270 100% 65%;
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 270 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 270 100% 65%;
   }
 }
 
@@ -77,6 +96,66 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  /* Neo Brutalism Button Base */
+  .btn-brutal {
+    @apply relative border-2 border-foreground bg-primary px-6 py-3 font-bold uppercase tracking-wide text-primary-foreground transition-all;
+    box-shadow: 4px 4px 0px 0px hsl(var(--foreground));
+  }
+
+  .btn-brutal:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px hsl(var(--foreground));
+  }
+
+  .btn-brutal:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px 0px hsl(var(--foreground));
+  }
+
+  .btn-brutal:disabled {
+    @apply opacity-60 cursor-not-allowed;
+    transform: none;
+    box-shadow: 4px 4px 0px 0px hsl(var(--foreground));
+  }
+
+  /* Neo Brutalism Card */
+  .card-brutal {
+    @apply border-2 border-foreground bg-card p-6;
+    box-shadow: 4px 4px 0px 0px hsl(var(--foreground));
+  }
+
+  /* Neo Brutalism Input */
+  .input-brutal {
+    @apply border-2 border-foreground bg-background px-4 py-3 font-medium text-foreground outline-none transition-all placeholder:text-muted-foreground;
+    box-shadow: 3px 3px 0px 0px hsl(var(--foreground));
+  }
+
+  .input-brutal:focus {
+    @apply ring-0;
+    box-shadow: 5px 5px 0px 0px hsl(var(--foreground));
+    transform: translate(-1px, -1px);
+  }
+
+  /* Neo Brutalism Badge */
+  .badge-brutal {
+    @apply inline-flex items-center border-2 border-foreground bg-primary px-2 py-0.5 text-xs font-bold uppercase text-primary-foreground;
+    box-shadow: 2px 2px 0px 0px hsl(var(--foreground));
+  }
+
+  /* Neo Brutalism Error Box */
+  .error-brutal {
+    @apply border-2 border-foreground bg-destructive/20 p-4 font-semibold text-destructive;
+    box-shadow: 4px 4px 0px 0px hsl(var(--foreground));
+  }
+
+  /* Neo Brutalism Info Box */
+  .info-brutal {
+    @apply border-2 border-foreground bg-secondary p-4 text-center font-medium;
+    box-shadow: 4px 4px 0px 0px hsl(var(--foreground));
   }
 }
 
