@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
-import { Download, Clipboard, AlertCircle, Link2, X, History } from "lucide-react";
+import { Download, Clipboard, AlertCircle, Link2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import DownloadCard from "@/components/DownloadCard";
-import DownloadHistory from "@/components/DownloadHistory";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { downloadTikTok, isValidTikTokUrl, type TikTokResult } from "@/lib/tiktok";
-import { useDownloadHistory } from "@/hooks/useDownloadHistory";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -17,11 +15,9 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TikTokResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { history, addToHistory, removeFromHistory, clearHistory } = useDownloadHistory();
 
   useEffect(() => {
     if (containerRef.current) {
@@ -89,34 +85,6 @@ const Index = () => {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-background px-4 pb-12 pt-2 md:px-6">
-      {/* Top Right Controls: History Button (place this next to your theme toggle) */}
-      <div className="fixed right-4 top-4 z-30 flex items-center gap-2">
-        {/* Your existing theme toggle button should be here */}
-        {/* <ThemeToggle /> */}
-        
-        {/* History Button — placed to the RIGHT of theme toggle */}
-        <button
-          onClick={() => setShowHistory(true)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl border-2 border-foreground bg-card text-foreground shadow-[3px_3px_0_0_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          aria-label="Download History"
-        >
-          <History className="h-5 w-5" />
-          {history.length > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-black text-white">
-              {history.length > 9 ? "9+" : history.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      <DownloadHistory
-        history={history}
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        onRemove={removeFromHistory}
-        onClear={clearHistory}
-      />
-
       <div className="mx-auto max-w-2xl">
         <Header />
 
