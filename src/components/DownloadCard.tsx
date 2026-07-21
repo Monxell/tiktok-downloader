@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Download, Video, Image, Sparkles, User, FileVideo, Volume2, Film } from "lucide-react";
+import { Download, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
@@ -12,21 +12,107 @@ interface DownloadCardProps {
 
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
+  const [capturedThumb, setCapturedThumb] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const isSlideshow = result.images.length > 0;
   const hasVideo = !!result.video && !isSlideshow;
   const hasHd = !!result.video_hd && !isSlideshow;
-  const hasWm = !!result.wm && !isSlideshow;
   const hasAudio = !!result.audio;
 
-  // Prioritas: animated GIF > static cover > slideshow image
-  const thumbnailSrc = result.coverAnimated || result.cover || (isSlideshow ? result.images[0] : null);
+  // ─── CAPTURE 1 FRAME DARI VIDEO ─────────────────────────
+  useEffect(() => {
+    if (!result.video || isSlideshow || capturedThumb || thumbError) return;
+
+    setIsCapturing(true);
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.src = result.video;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+
+    // Attach ke DOM (hidden) — penting buat mobile browser
+    video.style.position = "fixed";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    video.style.top = "0";
+    video.style.left = "0";
+    document.body.appendChild(video);
+
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      if (video.parentNode) document.body.removeChild(video);
+      setIsCapturing(false);
+    };
+
+    const onSeeked = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const w = video.videoWidth || 360;
+        const h = video.videoHeight || 640;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No 2d context");
+
+        ctx.drawImage(video, 0, 0, w, h);
+
+        // Cek pixel — kalau transparent/blank, jangan pakai
+        const pixel = ctx.getImageData(0, 0, 1, 1).data;
+        if (pixel[3] === 0) throw new Error("Blank frame");
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        setCapturedThumb(dataUrl);
+      } catch (err) {
+        console.warn("[Capture] Failed:", err);
+        setThumbError(true);
+      } finally {
+        cleanup();
+      }
+    };
+
+    const onError = () => {
+      console.warn("[Capture] Video error");
+      setThumbError(true);
+      cleanup();
+    };
+
+    video.addEventListener("loadeddata", () => {
+      try {
+        video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
+      } catch {
+        setThumbError(true);
+        cleanup();
+      }
+    });
+
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+
+    video.load();
+
+    return cleanup;
+  }, [result.video, isSlideshow, capturedThumb, thumbError]);
+
+  // ─── PRIORITAS THUMBNAIL ────────────────────────────────
+  // Slideshow: foto pertama | Video: API cover > captured frame > none
+  const thumbnailSrc = isSlideshow
+    ? result.images[0] || null
+    : result.cover || capturedThumb || null;
+
   const hasThumbnail = !!thumbnailSrc && !thumbError;
 
   const videoFileName = generateFileName("tikmon", "mp4");
   const hdFileName = generateFileName("tikmon_hd", "mp4");
-  const wmFileName = generateFileName("tikmon_wm", "mp4");
   const audioFileName = generateFileName("tikmon_audio", "mp3");
 
   const handleDownload = async (url: string | null, filename: string) => {
@@ -68,6 +154,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
+            {/* Thumbnail */}
             {hasThumbnail ? (
               <img
                 src={thumbnailSrc}
@@ -75,12 +162,13 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 className="h-full w-full object-cover"
                 loading="eager"
                 onError={() => {
-                  console.warn("[Thumbnail] Failed to load");
+                  console.warn("[Thumbnail] Image failed");
                   setThumbError(true);
                 }}
               />
             ) : null}
 
+            {/* Placeholder */}
             {!hasThumbnail && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
                 {isSlideshow ? (
@@ -89,11 +177,12 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                   <Video className="h-10 w-10 text-foreground" />
                 )}
                 <span className="text-[10px] font-black uppercase text-foreground">
-                  {isSlideshow ? `${result.images.length} Foto` : "Video"}
+                  {isSlideshow ? `${result.images.length} Foto` : isCapturing ? "Loading..." : "Video"}
                 </span>
               </div>
             )}
 
+            {/* Badges */}
             {hasVideo && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />
@@ -121,7 +210,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">{result.desc}</p>
           </div>
 
-          {/* Download Buttons */}
+          {/* Download Buttons — NO WM */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {hasVideo && (
               <Button
@@ -144,18 +233,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 <Sparkles className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">HD Video</span>
                 <span className="sm:hidden">HD</span>
-              </Button>
-            )}
-
-            {hasWm && (
-              <Button
-                size="lg"
-                onClick={() => handleDownload(result.wm, wmFileName)}
-                className="h-11 w-full rounded-xl border-2 border-foreground bg-orange-500 font-black uppercase tracking-wide text-white shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
-              >
-                <Film className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">With WM</span>
-                <span className="sm:hidden">WM</span>
               </Button>
             )}
 

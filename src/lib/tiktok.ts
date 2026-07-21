@@ -10,26 +10,21 @@ export interface TikTokResult {
   author: string;
   desc: string;
   cover?: string;
-  coverAnimated?: string;
   duration?: number;
   originalUrl?: string;
 }
 
 /* ============================================================
-   HELPERS — Super Robust URL Extraction
+   HELPERS
    ============================================================ */
 
 function resolveUrl(input: unknown, host?: string): string | null {
   if (!input) return null;
-
-  // String langsung
   if (typeof input === "string") {
     if (input.startsWith("http")) return input;
     if (host) return host + input;
     return null;
   }
-
-  // Array → ambil first valid string
   if (Array.isArray(input)) {
     for (const item of input) {
       const resolved = resolveUrl(item, host);
@@ -37,19 +32,15 @@ function resolveUrl(input: unknown, host?: string): string | null {
     }
     return null;
   }
-
-  // Object → cari field url/play/download
   if (typeof input === "object" && input !== null) {
     const obj = input as Record<string, unknown>;
-    const keys = ["url", "playUrl", "play_url", "downloadAddr", "uri", "src", "link"];
-    for (const key of keys) {
+    for (const key of ["url", "playUrl", "play_url", "downloadAddr", "uri"]) {
       if (obj[key]) {
         const resolved = resolveUrl(obj[key], host);
         if (resolved) return resolved;
       }
     }
   }
-
   return null;
 }
 
@@ -76,7 +67,7 @@ async function getOEmbedThumbnail(originalUrl: string): Promise<string | null> {
 }
 
 /* ============================================================
-   SOURCE 1: TIKWM (PRIMARY — PALING LENGKAP)
+   SOURCE 1: TIKWM (PRIMARY)
    ============================================================ */
 
 async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
@@ -98,25 +89,16 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
 
     const data = res.data?.data;
     if (!data) {
-      console.warn("[TikWM] No data field");
+      console.warn("[TikWM] No data");
       return null;
     }
 
-    // ─── VIDEOS (handle string, array, object) ──────────────
     const videoUrl = resolveUrl(data.play, host);
     const videoHd = resolveUrl(data.hdplay, host) || resolveUrl(data.hd_play, host);
     const wmUrl = resolveUrl(data.wmplay, host) || resolveUrl(data.wm_play, host);
-
-    // ─── AUDIO ──────────────────────────────────────────────
     const audio = resolveUrl(data.music, host);
+    const cover = resolveUrl(data.cover, host) || resolveUrl(data.origin_cover, host) || resolveUrl(data.thumbnail, host);
 
-    // ─── COVER STATIC ───────────────────────────────────────
-    const cover = resolveUrl(data.cover, host) || resolveUrl(data.thumbnail, host);
-
-    // ─── COVER ANIMATED (GIF/WEBP) — origin_cover biasanya animated ──
-    const coverAnimated = resolveUrl(data.origin_cover, host) || resolveUrl(data.dynamic_cover, host);
-
-    // ─── IMAGES (SLIDESHOW) ─────────────────────────────────
     const images: string[] = [];
     if (Array.isArray(data.images)) {
       for (const img of data.images) {
@@ -125,12 +107,9 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       }
     }
 
-    console.log("[TikWM] video:", !!videoUrl, "hd:", !!videoHd, "wm:", !!wmUrl, "audio:", !!audio, "cover:", !!cover, "animated:", !!coverAnimated);
+    console.log("[TikWM] video:", !!videoUrl, "hd:", !!videoHd, "wm:", !!wmUrl, "audio:", !!audio, "cover:", !!cover, "images:", images.length);
 
-    if (!videoUrl && images.length === 0) {
-      console.warn("[TikWM] No video and no images");
-      return null;
-    }
+    if (!videoUrl && images.length === 0) return null;
 
     return {
       status: true,
@@ -142,7 +121,6 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       author: data.author?.nickname || data.author?.unique_id || "-",
       desc: data.title || "-",
       cover: cover || undefined,
-      coverAnimated: coverAnimated || undefined,
       duration: data.duration,
       originalUrl: url,
     };
@@ -173,9 +151,9 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
     const result = d.result || d;
     const videoObj = result.video || result;
 
-    const videoUrl = resolveUrl(videoObj, undefined, "noWatermark", "play", "url", "download");
-    const videoHd = resolveUrl(videoObj, undefined, "hd", "hdplay", "hd_play");
-    const wmUrl = resolveUrl(videoObj, undefined, "watermark", "wm", "wmplay");
+    const videoUrl = resolveUrl(videoObj, undefined, "noWatermark", "play", "url");
+    const videoHd = resolveUrl(videoObj, undefined, "hd", "hdplay");
+    const wmUrl = resolveUrl(videoObj, undefined, "watermark", "wm");
 
     let audioUrl: string | null = null;
     if (typeof result.audio === "string") audioUrl = result.audio;
@@ -186,12 +164,8 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
       audioUrl = typeof result.music === "string" ? result.music : result.music.url || null;
     }
 
-    // Cover
     let cover: string | null = null;
-    const candidates = [
-      result.cover, result.thumbnail, result.thumb,
-      result.video?.cover, result.video?.thumbnail, result.video?.originCover,
-    ];
+    const candidates = [result.cover, result.thumbnail, result.video?.cover, result.video?.originCover];
     for (const c of candidates) {
       if (c && typeof c === "string" && c.startsWith("http")) {
         cover = c;
@@ -218,7 +192,7 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 }
 
 /* ============================================================
-   RETRY WRAPPER
+   RETRY & MAIN
    ============================================================ */
 
 async function withRetry<T>(fn: () => Promise<T | null>, retries = 3, delayMs = 1200): Promise<T | null> {
@@ -232,44 +206,27 @@ async function withRetry<T>(fn: () => Promise<T | null>, retries = 3, delayMs = 
   return null;
 }
 
-/* ============================================================
-   MAIN EXPORT — TikWM Primary, TiklyDown Fallback
-   ============================================================ */
-
 export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
-  console.log("[Download] URL:", url);
-
-  // PRIMARY: TikWM (paling lengkap — HD, WM, animated cover)
   let result = await withRetry(() => fetchFromTikWM(url), 3, 1500);
 
-  // FALLBACK: TiklyDown kalau TikWM gagal total
   if (!result || !result.video) {
-    console.log("[Main] TikWM failed, fallback to TiklyDown...");
+    console.log("[Main] Fallback to TiklyDown...");
     result = await withRetry(() => fetchFromTiklyDown(url), 2, 1200);
   }
 
-  // THUMBNAIL FALLBACK CHAIN
-  if (result && result.status) {
-    const originalUrl = result.originalUrl || url;
+  if (result && result.status && !result.cover && result.originalUrl) {
+    const oEmbedThumb = await getOEmbedThumbnail(result.originalUrl);
+    if (oEmbedThumb) result.cover = oEmbedThumb;
+  }
 
-    // Kalau masih nggak ada cover sama sekali, coba oEmbed
-    if (!result.cover && !result.coverAnimated) {
-      const oEmbedThumb = await getOEmbedThumbnail(originalUrl);
-      if (oEmbedThumb) result.cover = oEmbedThumb;
-    }
-
-    // Kalau slideshow tapi nggak ada cover, pakai image pertama
-    if (!result.cover && !result.coverAnimated && result.images.length > 0) {
-      result.cover = result.images[0];
-    }
+  if (!result?.cover && result?.images.length > 0) {
+    result.cover = result.images[0];
   }
 
   if (result && result.status && (result.video || result.images.length > 0)) {
-    console.log("[Download] SUCCESS — video:", !!result.video, "hd:", !!result.video_hd, "wm:", !!result.wm, "cover:", !!result.cover);
     return result;
   }
 
-  console.error("[Download] ALL SOURCES FAILED");
   return {
     status: false,
     video: null,
@@ -282,10 +239,6 @@ export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
     originalUrl: url,
   };
 };
-
-/* ============================================================
-   UTILS
-   ============================================================ */
 
 export const isValidTikTokUrl = (url: string): boolean => {
   const tiktokRegex = /^https?:\/\/(www\.|vm\.|vt\.|m\.)?tiktok\.com\/.+/i;
