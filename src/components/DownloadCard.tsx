@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2, Film, HighDefinition } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
@@ -20,7 +20,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const hasWm = !!result.wm && !isSlideshow;
   const hasAudio = !!result.audio;
 
-  // Thumbnail priority: animated (GIF) > static cover > slideshow[0] > none
   const thumbnailSrc = result.coverAnimated || result.cover || (isSlideshow ? result.images[0] : null);
   const hasThumbnail = !!thumbnailSrc && !thumbError;
 
@@ -68,14 +67,12 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
-            {/* Thumbnail: animated GIF / static / first slide */}
             {hasThumbnail ? (
               <img
                 src={thumbnailSrc}
                 alt="Thumbnail"
                 className="h-full w-full object-cover"
                 loading="eager"
-                // Kalau animated GIF, img tag tetap ngerendernya
                 onError={() => {
                   console.warn("[Thumbnail] Failed:", thumbnailSrc?.substring(0, 60));
                   setThumbError(true);
@@ -83,7 +80,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               />
             ) : null}
 
-            {/* Placeholder */}
             {!hasThumbnail && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
                 {isSlideshow ? (
@@ -97,7 +93,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </div>
             )}
 
-            {/* Badges */}
             {hasVideo && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />
@@ -125,9 +120,8 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">{result.desc}</p>
           </div>
 
-          {/* Download Buttons — Lengkap kaya TikWM */}
+          {/* Download Buttons */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* No Watermark SD */}
             {hasVideo && (
               <Button
                 size="lg"
@@ -140,20 +134,18 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
-            {/* HD */}
             {hasHd && (
               <Button
                 size="lg"
                 onClick={() => handleDownload(result.video_hd, hdFileName)}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-emerald-500 font-black uppercase tracking-wide text-white shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
-                <HighDefinition className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">HD Video</span>
                 <span className="sm:hidden">HD</span>
               </Button>
             )}
 
-            {/* With Watermark */}
             {hasWm && (
               <Button
                 size="lg"
@@ -166,7 +158,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
-            {/* Audio */}
             {hasAudio && (
               <Button
                 size="lg"
