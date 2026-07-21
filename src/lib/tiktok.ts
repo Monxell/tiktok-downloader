@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 export interface TikTokResult {
   status: boolean;
   video: string | null;      // Video Tanpa Watermark (SD)
-  video_hd: string | null;   // Video Tanpa Watermark HD (BARU)
+  video_hd: string | null;   // Video Tanpa Watermark HD
   wm: string | null;         // Video Dengan Watermark
   audio: string | null;      // Audio Only
   images: string[];          // Slideshow Images
@@ -14,11 +14,31 @@ export interface TikTokResult {
 
 /* ============================================================
    MULTI-SOURCE TIKTOK DOWNLOADER
-   - Source 1: TikWM (primary, fastest)
-   - Source 2: TiklyDown (fallback, supports HD)
-   - Auto retry 3x per source
-   - Auto fallback kalau source utama gagal
+   - Source 1: TikWM (primary)
+   - Source 2: TiklyDown (fallback)
+   - Smart URL deduplication: kalau HD/WM URL sama dengan SD,
+     dianggap tidak tersedia (null)
    ============================================================ */
+
+// ─── HELPER: Normalize & compare URLs ───────────────────────
+function normalizeUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  let u = url.trim();
+  if (u.startsWith("//")) u = "https:" + u;
+  // Remove query params for comparison (sometimes same file, different params)
+  try {
+    const parsed = new URL(u);
+    // TikWM sometimes adds ?h=xxx or ?s=xxx to same file
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return u;
+  }
+}
+
+function isSameUrl(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  return normalizeUrl(a) === normalizeUrl(b);
+}
 
 // ─── SOURCE 1: TIKWM ─────────────────────────────────────────
 async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
@@ -47,7 +67,10 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
     );
 
     const data = res.data?.data;
-    if (!data) return null;
+    if (!data) {
+      console.warn("[TikWM] No data in response");
+      return null;
+    }
 
     const formatUrl = (path: string | undefined): string | null => {
       if (!path) return null;
@@ -55,12 +78,33 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       return host + path;
     };
 
+    const rawVideo = formatUrl(data.play);
+    const rawVideoHd = formatUrl(data.hdplay);
+    const rawWm = formatUrl(data.wmplay);
+    const rawAudio = formatUrl(data.music);
+
+    // ─── DEDUPLICATION LOGIC ──────────────────────────────
+    // Kalau HD URL sama dengan SD → HD tidak tersedia (bukan HD beneran)
+    const video_hd = (rawVideoHd && !isSameUrl(rawVideoHd, rawVideo)) ? rawVideoHd : null;
+
+    // Kalau WM URL sama dengan No WM → WM tidak tersedia (URL salah)
+    const wm = (rawWm && !isSameUrl(rawWm, rawVideo)) ? rawWm : null;
+
+    // Log untuk debug (bisa dilihat di browser console)
+    console.log("[TikWM] URLs:", {
+      play: rawVideo,
+      hdplay: rawVideoHd,
+      wmplay: rawWm,
+      deduped_hd: video_hd,
+      deduped_wm: wm,
+    });
+
     return {
       status: true,
-      video: formatUrl(data.play),
-      video_hd: formatUrl(data.hdplay),   // HD no watermark
-      wm: formatUrl(data.wmplay),         // with watermark
-      audio: formatUrl(data.music),       // audio only
+      video: rawVideo,
+      video_hd: video_hd,
+      wm: wm,
+      audio: rawAudio,
       images: Array.isArray(data.images)
         ? data.images.map((img: string) =>
             img.startsWith("http") ? img : host + img
@@ -77,15 +121,13 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
   }
 }
 
-// ─── SOURCE 2: TIKLYDOWN ─────────────────────────────────────
+// ─── SOURCE 2: TIKLYDOWN ───────────────────────────────────
 async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
   try {
     const res = await axios.get("https://api.tiklydown.eu.org/api/download", {
       params: { url },
       timeout: 15000,
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
 
     const d = res.data;
@@ -93,7 +135,6 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 
     const result = d.result || d;
 
-    // Normalize video URLs
     const getVideoUrl = (obj: any): string | null => {
       if (!obj) return null;
       if (typeof obj === "string") return obj;
@@ -104,7 +145,7 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 
     const getVideoHdUrl = (obj: any): string | null => {
       if (!obj) return null;
-      if (typeof obj === "string") return obj;
+      if (typeof obj === "string") return null;
       if (obj.hd) return obj.hd;
       if (obj.hdplay) return obj.hdplay;
       return null;
@@ -112,7 +153,7 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 
     const getWmUrl = (obj: any): string | null => {
       if (!obj) return null;
-      if (typeof obj === "string") return null; // ambiguous
+      if (typeof obj === "string") return null;
       if (obj.watermark) return obj.watermark;
       if (obj.wmplay) return obj.wmplay;
       return null;
@@ -121,12 +162,29 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
     const videoObj = result.video || result;
     const videoHdObj = result.video_hd || result.hd || null;
 
+    const rawVideo = getVideoUrl(videoObj);
+    const rawVideoHd = getVideoHdUrl(videoHdObj);
+    const rawWm = getWmUrl(videoObj);
+    const rawAudio = typeof result.audio === "string" ? result.audio : null;
+
+    // Deduplication
+    const video_hd = (rawVideoHd && !isSameUrl(rawVideoHd, rawVideo)) ? rawVideoHd : null;
+    const wm = (rawWm && !isSameUrl(rawWm, rawVideo)) ? rawWm : null;
+
+    console.log("[TiklyDown] URLs:", {
+      video: rawVideo,
+      hd: rawVideoHd,
+      wm: rawWm,
+      deduped_hd: video_hd,
+      deduped_wm: wm,
+    });
+
     return {
       status: true,
-      video: getVideoUrl(videoObj),
-      video_hd: getVideoHdUrl(videoHdObj) || getVideoUrl(videoObj), // fallback ke SD kalau HD tidak ada
-      wm: getWmUrl(videoObj),
-      audio: typeof result.audio === "string" ? result.audio : null,
+      video: rawVideo,
+      video_hd: video_hd,
+      wm: wm,
+      audio: rawAudio,
       images: Array.isArray(result.images) ? result.images : [],
       author: result.author?.nickname || result.author?.username || "-",
       desc: result.title || result.desc || "-",
@@ -161,12 +219,10 @@ async function withRetry<T>(
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────
 export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
-  // 1. Coba TikWM dulu (biasanya paling cepat & lengkap)
   let result = await withRetry(() => fetchFromTikWM(url), 3, 1200);
 
-  // 2. Fallback ke TiklyDown kalau TikWM gagal
   if (!result || !result.video) {
-    console.log("[Fallback] TikWM gagal, mencoba TiklyDown...");
+    console.log("[Fallback] TikWM gagal / tidak ada video, mencoba TiklyDown...");
     result = await withRetry(() => fetchFromTiklyDown(url), 3, 1200);
   }
 
@@ -174,7 +230,6 @@ export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
     return result;
   }
 
-  // 3. Semua source gagal
   return {
     status: false,
     video: null,
@@ -193,12 +248,10 @@ export const isValidTikTokUrl = (url: string): boolean => {
   return tiktokRegex.test(url);
 };
 
-// ─── HELPER: Cek apakah post adalah slideshow ────────────────
 export const isSlideshow = (result: TikTokResult): boolean => {
   return result.images.length > 0;
 };
 
-// ─── HELPER: Cek apakah video tersedia ───────────────────────
 export const hasVideo = (result: TikTokResult): boolean => {
   return !!result.video || !!result.video_hd;
 };
