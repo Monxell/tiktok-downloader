@@ -19,7 +19,6 @@ export interface TikTokResult {
 
 function formatUrl(path: string | string[] | undefined, host: string): string | null {
   if (!path) return null;
-  // Handle array (some APIs return array of URLs)
   const urlStr = Array.isArray(path) ? path[0] : path;
   if (!urlStr) return null;
   if (urlStr.startsWith("http")) return urlStr;
@@ -55,28 +54,24 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 
     const videoUrl = getUrl(videoObj, "noWatermark", "play", "url");
 
-    // Audio: try multiple possible field names
+    // Audio extraction
     let audioUrl: string | null = null;
-    if (typeof result.audio === "string") {
-      audioUrl = result.audio;
-    } else if (result.audio && typeof result.audio === "object") {
+    if (typeof result.audio === "string") audioUrl = result.audio;
+    else if (result.audio && typeof result.audio === "object") {
       audioUrl = result.audio.url || result.audio.playUrl || result.audio.music || null;
     }
     if (!audioUrl && result.music) {
       audioUrl = typeof result.music === "string" ? result.music : result.music.url || result.music.playUrl || null;
     }
 
-    // Cover: try multiple possible field names
+    // Cover extraction
     let cover: string | null = null;
     const coverCandidates = [
-      result.cover,
-      result.thumbnail,
-      result.thumb,
-      result.image,
-      result.video?.cover,
-      result.video?.thumbnail,
-      result.video?.originCover,
-      result.video?.dynamicCover,
+      result.cover, result.thumbnail, result.thumb, result.image,
+      result.video?.cover, result.video?.thumbnail, result.video?.originCover,
+      result.video?.dynamicCover, result.video?.origin_cover,
+      result.video?.play_addr?.url_list?.[0],
+      result.video?.download_addr?.url_list?.[0],
     ];
     for (const candidate of coverCandidates) {
       if (candidate) {
@@ -125,7 +120,6 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
     const data = res.data?.data;
     if (!data) return null;
 
-    // Cover extraction with multiple fallbacks
     let cover: string | null = null;
     const coverSources = [data.origin_cover, data.cover, data.dynamic_cover, data.author?.avatar];
     for (const src of coverSources) {
@@ -133,7 +127,6 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       if (cover) break;
     }
 
-    // Audio extraction
     let audio: string | null = null;
     if (data.music) {
       if (typeof data.music === "string") {
@@ -144,12 +137,7 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       }
     }
 
-    console.log("[TikWM] Extracted:", { 
-      video: formatUrl(data.play, host), 
-      audio: audio, 
-      cover: cover,
-      images: data.images?.length 
-    });
+    console.log("[TikWM] Extracted:", { video: formatUrl(data.play, host), audio: audio, cover: cover });
 
     return {
       status: true,
@@ -157,11 +145,11 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       video_hd: null,
       wm: null,
       audio: audio,
-      images: Array.isArray(data.images) 
+      images: Array.isArray(data.images)
         ? data.images.map((img: string | string[]) => {
             const imgStr = Array.isArray(img) ? img[0] : img;
             return imgStr.startsWith("http") ? imgStr : host + imgStr;
-          }) 
+          })
         : [],
       author: data.author?.nickname || data.author?.unique_id || "-",
       desc: data.title || "-",
@@ -219,7 +207,6 @@ export const isValidTikTokUrl = (url: string): boolean => {
 export const isSlideshow = (result: TikTokResult): boolean => result.images.length > 0;
 export const hasVideo = (result: TikTokResult): boolean => !!result.video;
 
-// ─── HELPER: Generate simple filename ───────────────────────
 export function generateFileName(prefix: string, ext: string): string {
   return `${prefix}_${Date.now()}.${ext}`;
 }

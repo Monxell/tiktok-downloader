@@ -12,23 +12,15 @@ interface DownloadCardProps {
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
 
-  const handleDownload = async (url: string | null, filename: string) => {
+  const handleVideoDownload = async (url: string | null, filename: string) => {
     if (!url) {
-      toast({ title: "URL tidak tersedia", description: "Link download tidak ditemukan.", variant: "destructive" });
+      toast({ title: "URL tidak tersedia", description: "Link video tidak ditemukan.", variant: "destructive" });
       return;
     }
-
-    toast({ title: "Memulai download...", description: filename });
-
+    toast({ title: "Memulai download video...", description: filename });
     try {
-      // For audio files, try fetch with no-cors as fallback strategy
-      const response = await fetch(url, { 
-        method: "GET",
-        // Note: mode: 'cors' is default, but some audio CDN might block
-      });
-
+      const response = await fetch(url, { method: "GET" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -39,35 +31,65 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
-      console.warn("[Direct Download] Fetch gagal, mencoba fallback:", err);
+      console.warn("[Video Download] Fetch gagal, fallback ke tab:", err);
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast({ title: "Dibuka di tab baru", description: "Tekan Ctrl+S untuk menyimpan video." });
+    }
+  };
 
-      // Strategy 2: Try opening in new tab with download attribute via proxy
+  const handleAudioDownload = async (url: string | null, filename: string) => {
+    if (!url) {
+      toast({ title: "URL tidak tersedia", description: "Link audio tidak ditemukan.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Memulai download audio...", description: filename });
+    try {
+      const response = await fetch(url, { method: "GET" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+      toast({ title: "Download dimulai!", description: filename });
+    } catch (err) {
+      console.warn("[Audio Download] Fetch gagal, using direct link:", err);
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
       link.target = "_blank";
-      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      toast({ title: "Membuka link download...", description: "Tekan Ctrl+S untuk menyimpan." });
+      toast({ title: "Membuka link audio...", description: "Audio akan otomatis tersimpan atau buka di tab baru." });
     }
   };
 
+  const handleImageDownload = (url: string, filename: string) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Download dimulai!", description: filename });
+  };
+
   const isSlideshow = result.images.length > 0;
-  const hasVideo = !!result.video || !!result.video_hd;
+  const hasVideo = !!result.video && !isSlideshow;
   const hasAudio = !!result.audio;
 
   const videoFileName = generateFileName("tikmon", "mp4");
   const audioFileName = generateFileName("tikmon_audio", "mp3");
-
-  // Debug: log cover URL
-  console.log("[DownloadCard] Cover URL:", result.cover);
-  console.log("[DownloadCard] Audio URL:", result.audio);
 
   return (
     <motion.div
@@ -80,38 +102,32 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         {/* Preview */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
-
-            {/* Cover Image with multiple fallback strategies */}
             {result.cover ? (
               <img
                 src={result.cover}
-                alt="Thumbnail video"
+                alt="Thumbnail"
                 className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
                 crossOrigin="anonymous"
-                onLoad={() => console.log("[Thumbnail] Loaded successfully:", result.cover)}
-                onError={(e) => {
-                  console.warn("[Thumbnail] Failed to load:", result.cover, "Error:", e);
-                  // Try to reload without crossOrigin
-                  const img = e.currentTarget;
-                  img.crossOrigin = "";
-                  img.src = result.cover + "?retry=1";
-
-                  // If still fails, hide the image
-                  img.onerror = () => {
-                    console.warn("[Thumbnail] Retry failed, hiding image");
-                    img.style.display = 'none';
-                  };
-                }}
                 loading="eager"
+                onLoad={() => console.log("[Thumbnail] Loaded:", result.cover)}
+                onError={(e) => {
+                  console.warn("[Thumbnail] Failed:", result.cover);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             ) : null}
 
-            {/* Placeholder when no cover or image failed */}
-            <div className={`absolute inset-0 flex items-center justify-center bg-muted ${result.cover ? 'bg-background/30' : ''}`}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/80 gap-2">
               {isSlideshow ? (
                 <Image className="h-10 w-10 text-muted-foreground" />
               ) : (
                 <Video className="h-10 w-10 text-muted-foreground" />
+              )}
+              {!result.cover && (
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  {isSlideshow ? "Slideshow" : "Video"}
+                </span>
               )}
             </div>
 
@@ -140,10 +156,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               <p className="text-sm font-black text-primary">@{result.author}</p>
             </div>
             <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">{result.desc}</p>
-
-            <p className="mt-2 text-xs font-mono text-muted-foreground break-all">
-              {videoFileName}
-            </p>
           </div>
 
           {/* Download Buttons */}
@@ -151,7 +163,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             {hasVideo && (
               <Button
                 size="lg"
-                onClick={() => handleDownload(result.video, videoFileName)}
+                onClick={() => handleVideoDownload(result.video, videoFileName)}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <FileVideo className="mr-2 h-4 w-4" />
@@ -163,7 +175,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             {hasAudio && (
               <Button
                 size="lg"
-                onClick={() => handleDownload(result.audio, audioFileName)}
+                onClick={() => handleAudioDownload(result.audio, audioFileName)}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-accent font-black uppercase tracking-wide text-accent-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Volume2 className="mr-2 h-4 w-4" />
@@ -177,7 +189,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             ℹ️ Kualitas video mengikuti kualitas asli di TikTok. API gratisan tidak menyediakan versi HD/SD/WM terpisah.
           </p>
 
-          {/* Slideshow Images */}
+          {/* Slideshow Images - HORIZONTAL SCROLLABLE */}
           {isSlideshow && (
             <div className="mt-1">
               <div className="mb-3 flex items-center gap-2">
@@ -186,8 +198,9 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 </div>
                 <p className="text-sm font-black uppercase text-foreground">Slideshow ({result.images.length} foto)</p>
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-                {result.images.slice(0, 10).map((img, index) => {
+
+              <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {result.images.map((img, index) => {
                   const slideFileName = generateFileName(`tikmon_slide${index + 1}`, "jpg");
                   return (
                     <motion.button
@@ -195,12 +208,20 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      onClick={() => handleDownload(img, slideFileName)}
-                      className="group relative aspect-square overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                      onClick={() => handleImageDownload(img, slideFileName)}
+                      className="group relative flex-shrink-0 w-32 h-40 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none snap-start"
                     >
-                      <img src={img} alt={`Slide ${index + 1}`} className="h-full w-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt={`Slide ${index + 1}`} 
+                        className="h-full w-full object-cover" 
+                        loading="lazy"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-primary/90 opacity-0 transition-opacity group-hover:opacity-100">
                         <Download className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <div className="absolute bottom-1 right-1 rounded-md bg-background/90 px-1.5 py-0.5 text-[10px] font-black text-foreground border border-foreground">
+                        {index + 1}
                       </div>
                     </motion.button>
                   );
