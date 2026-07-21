@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,56 @@ interface DownloadCardProps {
 
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
+  const [capturedThumbnail, setCapturedThumbnail] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // ─── CAPTURE VIDEO FRAME FOR THUMBNAIL ──────────────────
+  useEffect(() => {
+    if (!result.video || result.images.length > 0) return; // Skip slideshows
+
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.src = result.video;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+
+    video.onloadeddata = () => {
+      try {
+        video.currentTime = 0.5; // Seek to 0.5s for a good frame
+      } catch {
+        // Some browsers don't support setting currentTime before play
+      }
+    };
+
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 360;
+        canvas.height = video.videoHeight || 640;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setCapturedThumbnail(dataUrl);
+          console.log("[Canvas] Frame captured successfully");
+        }
+      } catch (err) {
+        console.warn("[Canvas] Failed to capture frame:", err);
+      }
+    };
+
+    video.onerror = () => {
+      console.warn("[Canvas] Video failed to load for frame capture");
+    };
+
+    // Cleanup
+    return () => {
+      video.src = "";
+      video.load();
+    };
+  }, [result.video, result.images.length]);
 
   const handleDownload = async (url: string | null, filename: string) => {
     if (!url) {
@@ -42,7 +93,10 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const isSlideshow = result.images.length > 0;
   const hasVideo = !!result.video && !isSlideshow;
   const hasAudio = !!result.audio;
-  const hasThumbnail = (isSlideshow && !!result.images[0]) || !!result.cover;
+
+  // Determine thumbnail source: captured frame > API cover > images[0] > none
+  const thumbnailSrc = capturedThumbnail || result.cover || (isSlideshow ? result.images[0] : null);
+  const hasThumbnail = !!thumbnailSrc;
 
   const videoFileName = generateFileName("tikmon", "mp4");
   const audioFileName = generateFileName("tikmon_audio", "mp3");
@@ -55,32 +109,20 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
       <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-        {/* Preview Area — NO VIDEO TAG AT ALL */}
+        {/* Preview Area */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
-            {/* SLIDESHOW: First image as thumbnail */}
-            {isSlideshow && result.images[0] ? (
+            {/* Thumbnail: captured frame / API cover / first image */}
+            {thumbnailSrc ? (
               <img
-                src={result.images[0]}
+                src={thumbnailSrc}
                 alt="Thumbnail"
                 className="h-full w-full object-cover"
                 loading="eager"
-                referrerPolicy="no-referrer"
                 onError={(e) => {
-                  console.warn("[Slideshow Thumb] Failed:", result.images[0]);
-                }}
-              />
-            ) : result.cover ? (
-              /* VIDEO: Cover image from API or oEmbed */
-              <img
-                src={result.cover}
-                alt="Thumbnail"
-                className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
-                loading="eager"
-                onError={(e) => {
-                  console.warn("[Cover] Failed:", result.cover);
+                  console.warn("[Thumbnail] Failed to load:", thumbnailSrc.substring(0, 50));
+                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : null}
