@@ -28,7 +28,7 @@ const Header = () => {
             </svg>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
-            Tik<span className="text-primary">mon</span>
+            Tik<span className="text-primary">Mon</span>
           </h1>
         </div>
 
