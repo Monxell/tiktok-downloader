@@ -12,20 +12,15 @@ interface DownloadCardProps {
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
 
-  // ─── DOWNLOAD HANDLER ────────────────────────────────────
   const handleDownload = async (url: string | null, filename: string) => {
     if (!url) {
       toast({ title: "URL tidak tersedia", description: "Link tidak ditemukan.", variant: "destructive" });
       return;
     }
-
     toast({ title: "Memulai download...", description: filename });
-
     try {
-      // Try to fetch as blob for direct download
       const response = await fetch(url, { method: "GET" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -36,22 +31,18 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
-      // CORS blocked or network error — open in new tab
       console.warn("[Download] CORS blocked, opening in new tab:", err);
       window.open(url, "_blank", "noopener,noreferrer");
-      toast({
-        title: "Dibuka di tab baru",
-        description: "Tekan titik 3 (⋮) → Download untuk menyimpan file.",
-      });
+      toast({ title: "Dibuka di tab baru", description: "Tekan titik 3 (⋮) → Download untuk menyimpan file." });
     }
   };
 
   const isSlideshow = result.images.length > 0;
   const hasVideo = !!result.video && !isSlideshow;
   const hasAudio = !!result.audio;
+  const hasThumbnail = (isSlideshow && !!result.images[0]) || !!result.cover;
 
   const videoFileName = generateFileName("tikmon", "mp4");
   const audioFileName = generateFileName("tikmon_audio", "mp3");
@@ -64,7 +55,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
       <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-        {/* Preview Area — NO VIDEO PREVIEW, only image/placeholder */}
+        {/* Preview Area */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
@@ -96,18 +87,21 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               />
             ) : null}
 
-            {/* Placeholder overlay — always visible */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${(isSlideshow && result.images[0]) || result.cover ? 'bg-background/30' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
-              {isSlideshow ? (
-                <Image className="h-10 w-10 text-foreground drop-shadow-md" />
-              ) : (
-                <Video className="h-10 w-10 text-foreground drop-shadow-md" />
-              )}
-              <span className="text-[10px] font-black uppercase text-foreground drop-shadow-md">
-                {isSlideshow ? `${result.images.length} Foto` : "Video"}
-              </span>
-            </div>
+            {/* Placeholder overlay — ONLY when no thumbnail */}
+            {!hasThumbnail && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
+                {isSlideshow ? (
+                  <Image className="h-10 w-10 text-foreground" />
+                ) : (
+                  <Video className="h-10 w-10 text-foreground" />
+                )}
+                <span className="text-[10px] font-black uppercase text-foreground">
+                  {isSlideshow ? `${result.images.length} Foto` : "Video"}
+                </span>
+              </div>
+            )}
 
+            {/* Small type badge */}
             {hasVideo && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />
@@ -165,7 +159,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             ℹ️ Kualitas video mengikuti kualitas asli di TikTok.
           </p>
 
-          {/* Slideshow — Horizontal Scrollable */}
+          {/* Slideshow */}
           {isSlideshow && (
             <div className="mt-1">
               <div className="mb-3 flex items-center gap-2">
