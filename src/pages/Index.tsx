@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import DownloadCard from "@/components/DownloadCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { HistoryProvider } from "@/contexts/HistoryContext";
 import { downloadTikTok, isValidTikTokUrl, type TikTokResult } from "@/lib/tiktok";
 import { useToast } from "@/hooks/use-toast";
 
-const Index = () => {
+const IndexContent = () => {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TikTokResult | null>(null);
@@ -21,11 +22,7 @@ const Index = () => {
 
   useEffect(() => {
     if (containerRef.current) {
-      gsap.fromTo(
-        containerRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.5, ease: "power2.out" }
-      );
+      gsap.fromTo(containerRef.current, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" });
     }
   }, []);
 
@@ -45,11 +42,7 @@ const Index = () => {
       throw new Error("Clipboard empty");
     } catch {
       inputRef.current?.select();
-      toast({
-        title: "Paste Failed",
-        description: "Please paste the URL manually (press & hold input → Paste)",
-        variant: "destructive",
-      });
+      toast({ title: "Paste Failed", description: "Please paste the URL manually (press & hold input → Paste)", variant: "destructive" });
     }
   }, [toast]);
 
@@ -58,24 +51,14 @@ const Index = () => {
     setError(null);
     setResult(null);
 
-    if (!url.trim()) {
-      setError("Please enter a TikTok URL");
-      return;
-    }
-
-    if (!isValidTikTokUrl(url)) {
-      setError("Please enter a valid TikTok URL");
-      return;
-    }
+    if (!url.trim()) { setError("Please enter a TikTok URL"); return; }
+    if (!isValidTikTokUrl(url)) { setError("Please enter a valid TikTok URL"); return; }
 
     setLoading(true);
     try {
       const data = await downloadTikTok(url);
-      if (data.status) {
-        setResult(data);
-      } else {
-        setError("Failed to fetch video. Please try again.");
-      }
+      if (data.status) setResult(data);
+      else setError("Failed to fetch video. Please try again.");
     } catch {
       setError("An error occurred. Please try again.");
     } finally {
@@ -88,90 +71,53 @@ const Index = () => {
       <div className="mx-auto max-w-2xl">
         <Header />
 
-        {/* Main Form Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-          className="mt-2 rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-7"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
+          className="mt-2 rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-7">
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-foreground bg-primary shadow-[3px_3px_0px_0px_hsl(var(--foreground))]">
               <Link2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <h2 className="text-lg font-black text-foreground">Download Video</h2>
-              <p className="text-xs font-medium text-muted-foreground">
-                Without watermark, free & fast
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Without watermark, free & fast</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row">
               <div className="relative flex-1">
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  inputMode="url"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  placeholder="Paste TikTok link here..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="h-12 rounded-xl border-2 border-foreground bg-background pr-24 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
+                <Input ref={inputRef} type="text" inputMode="url" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                  placeholder="Paste TikTok link here..." value={url} onChange={(e) => setUrl(e.target.value)}
+                  className="h-12 rounded-xl border-2 border-foreground bg-background pr-24 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0" />
                 <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
                   {url && (
-                    <button
-                      type="button"
-                      onClick={() => setUrl("")}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label="Clear"
-                    >
+                    <button type="button" onClick={() => setUrl("")} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground" aria-label="Clear">
                       <X className="h-4 w-4" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handlePaste}
+                  <button type="button" onClick={handlePaste}
                     className="rounded-lg border-2 border-foreground bg-secondary p-2 text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                    aria-label="Paste from clipboard"
-                  >
+                    aria-label="Paste from clipboard">
                     <Clipboard className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-              <Button
-                type="submit"
-                size="lg"
-                disabled={loading}
-                className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60"
-              >
-                <Download className="mr-2 h-5 w-5" />
-                {loading ? "Processing..." : "Download"}
+              <Button type="submit" size="lg" disabled={loading}
+                className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60">
+                <Download className="mr-2 h-5 w-5" /> {loading ? "Processing..." : "Download"}
               </Button>
             </div>
           </form>
 
           <div className="mt-5 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/30 p-3 text-center">
-            <p className="text-xs font-semibold text-muted-foreground">
-              Paste a TikTok video or slideshow link to download without watermark
-            </p>
+            <p className="text-xs font-semibold text-muted-foreground">Paste a TikTok video or slideshow link to download without watermark</p>
           </div>
         </motion.div>
 
-        {/* Error */}
         <AnimatePresence>
           {error && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mt-5 flex items-center gap-3 rounded-2xl border-2 border-foreground bg-destructive/15 p-4 font-bold text-destructive shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
-            >
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="mt-5 flex items-center gap-3 rounded-2xl border-2 border-foreground bg-destructive/15 p-4 font-bold text-destructive shadow-[4px_4px_0px_0px_hsl(var(--foreground))]">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border-2 border-foreground bg-destructive shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <AlertCircle className="h-4 w-4 text-white" />
               </div>
@@ -180,45 +126,35 @@ const Index = () => {
           )}
         </AnimatePresence>
 
-        {/* Loading */}
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
             <div className="rounded-2xl border-2 border-foreground bg-card p-6 shadow-[5px_5px_0px_0px_hsl(var(--foreground))]">
               <LoadingSpinner />
-              <p className="mt-3 text-center text-sm font-black uppercase tracking-wide text-muted-foreground">
-                Fetching video data...
-              </p>
+              <p className="mt-3 text-center text-sm font-black uppercase tracking-wide text-muted-foreground">Fetching video data...</p>
             </div>
           </motion.div>
         )}
 
-        {/* Result */}
         <AnimatePresence>
           {result && !loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mt-5"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-5">
               <DownloadCard result={result} />
             </motion.div>
           )}
         </AnimatePresence>
 
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-10 text-center"
-        >
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Download TikTok videos without watermark for free
-          </p>
+        <motion.footer initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-10 text-center">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Download TikTok videos without watermark for free</p>
         </motion.footer>
       </div>
     </div>
   );
 };
+
+const Index = () => (
+  <HistoryProvider>
+    <IndexContent />
+  </HistoryProvider>
+);
 
 export default Index;

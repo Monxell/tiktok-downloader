@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import { History } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import DownloadHistory from "@/components/DownloadHistory";
-import { useDownloadHistory } from "@/hooks/useDownloadHistory";
+import { useHistory } from "@/contexts/HistoryContext";
 
 const Header = () => {
   const [showHistory, setShowHistory] = useState(false);
-  const { history, removeFromHistory, clearHistory } = useDownloadHistory();
+  const { history, removeFromHistory, clearHistory } = useHistory();
 
   return (
     <>
@@ -32,7 +32,6 @@ const Header = () => {
           </h1>
         </div>
 
-        {/* Right side: Theme Toggle + History */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <button

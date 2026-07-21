@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { History, X, FileVideo, Volume2, Image, Trash2, Download } from "lucide-react";
-import type { HistoryItem } from "@/hooks/useDownloadHistory";
+import type { HistoryItem } from "@/contexts/HistoryContext";
 
 interface Props {
   history: HistoryItem[];
@@ -26,7 +26,6 @@ export default function DownloadHistory({ history, isOpen, onClose, onRemove, on
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -34,8 +33,6 @@ export default function DownloadHistory({ history, isOpen, onClose, onRemove, on
             onClick={onClose}
             className="fixed inset-0 z-40 bg-black/50"
           />
-
-          {/* Panel */}
           <motion.div
             initial={{ opacity: 0, x: "100%" }}
             animate={{ opacity: 1, x: 0 }}
