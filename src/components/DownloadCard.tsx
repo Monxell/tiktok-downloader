@@ -55,7 +55,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
       <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-        {/* Preview Area */}
+        {/* Preview Area — NO VIDEO TAG AT ALL */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
@@ -69,11 +69,10 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   console.warn("[Slideshow Thumb] Failed:", result.images[0]);
-                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : result.cover ? (
-              /* VIDEO: Cover image from API */
+              /* VIDEO: Cover image from API or oEmbed */
               <img
                 src={result.cover}
                 alt="Thumbnail"
@@ -82,12 +81,11 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 loading="eager"
                 onError={(e) => {
                   console.warn("[Cover] Failed:", result.cover);
-                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : null}
 
-            {/* Placeholder overlay — ONLY when no thumbnail */}
+            {/* Placeholder — ONLY when no thumbnail */}
             {!hasThumbnail && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
                 {isSlideshow ? (
@@ -101,7 +99,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </div>
             )}
 
-            {/* Small type badge */}
             {hasVideo && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />

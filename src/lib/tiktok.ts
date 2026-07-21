@@ -11,6 +11,7 @@ export interface TikTokResult {
   desc: string;
   cover?: string;
   duration?: number;
+  originalUrl?: string; // Save original URL for oEmbed fallback
 }
 
 /* ============================================================
@@ -23,6 +24,26 @@ function formatUrl(path: string | string[] | undefined, host: string): string | 
   if (!urlStr) return null;
   if (urlStr.startsWith("http")) return urlStr;
   return host + urlStr;
+}
+
+// ─── OEMBED THUMBNAIL FALLBACK ─────────────────────────────
+async function getOEmbedThumbnail(originalUrl: string): Promise<string | null> {
+  try {
+    const res = await axios.get("https://www.tiktok.com/oembed", {
+      params: { url: originalUrl },
+      timeout: 10000,
+      headers: { Accept: "application/json" },
+    });
+    const thumbnail = res.data?.thumbnail_url;
+    if (thumbnail && thumbnail.startsWith("http")) {
+      console.log("[oEmbed] Thumbnail found:", thumbnail);
+      return thumbnail;
+    }
+    return null;
+  } catch (error) {
+    console.warn("[oEmbed] Failed:", (error as AxiosError).message);
+    return null;
+  }
 }
 
 // ─── SOURCE 1: TIKLYDOWN (PRIMARY) ───────────────────────────
@@ -54,7 +75,6 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
 
     const videoUrl = getUrl(videoObj, "noWatermark", "play", "url");
 
-    // Audio extraction
     let audioUrl: string | null = null;
     if (typeof result.audio === "string") audioUrl = result.audio;
     else if (result.audio && typeof result.audio === "object") {
@@ -92,6 +112,7 @@ async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
       author: result.author?.nickname || result.author?.username || "-",
       desc: result.title || result.desc || "-",
       cover: cover || undefined,
+      originalUrl: url,
     };
   } catch (error) {
     console.warn("[TiklyDown] Error:", (error as AxiosError).message);
@@ -155,6 +176,7 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       desc: data.title || "-",
       cover: cover || undefined,
       duration: data.duration,
+      originalUrl: url,
     };
   } catch (error) {
     console.warn("[TikWM] Error:", (error as AxiosError).message);
@@ -183,6 +205,15 @@ export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
     result = await withRetry(() => fetchFromTikWM(url), 3, 1500);
   }
 
+  // ─── THUMBNAIL FALLBACK: oEmbed ──────────────────────────
+  if (result && result.status && !result.cover && result.originalUrl) {
+    console.log("[Thumbnail] API cover empty, trying oEmbed...");
+    const oEmbedThumb = await getOEmbedThumbnail(result.originalUrl);
+    if (oEmbedThumb) {
+      result.cover = oEmbedThumb;
+    }
+  }
+
   if (result && result.status && (result.video || result.images.length > 0)) {
     return result;
   }
@@ -196,6 +227,7 @@ export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
     images: [],
     author: "-",
     desc: "-",
+    originalUrl: url,
   };
 };
 
