@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
-import { Download, Clipboard, AlertCircle, Link2, X } from "lucide-react";
+import { Download, Clipboard, AlertCircle, Link2, X, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import DownloadCard from "@/components/DownloadCard";
+import DownloadHistory from "@/components/DownloadHistory";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { downloadTikTok, isValidTikTokUrl, type TikTokResult } from "@/lib/tiktok";
+import { useDownloadHistory } from "@/hooks/useDownloadHistory";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -15,9 +17,11 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TikTokResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { history, addToHistory, removeFromHistory, clearHistory } = useDownloadHistory();
 
   useEffect(() => {
     if (containerRef.current) {
@@ -29,31 +33,25 @@ const Index = () => {
     }
   }, []);
 
-  // ─── PASTE FIX: Robust dengan fallback ───────────────────
   const handlePaste = useCallback(async () => {
-    // Fokus input dulu
     inputRef.current?.focus();
-
     try {
-      // Layer 1: Modern Clipboard API (hanya work di HTTPS + user gesture)
       if (navigator.clipboard?.readText) {
         const text = await navigator.clipboard.readText();
         if (text?.trim()) {
           setUrl(text.trim());
           if (isValidTikTokUrl(text.trim())) {
-            toast({ title: "URL Ditempel", description: "Link TikTok terdeteksi!" });
+            toast({ title: "URL Pasted", description: "TikTok link detected!" });
           }
           return;
         }
       }
-      // Kalau clipboard kosong atau API nggak ada
-      throw new Error("Clipboard empty or unsupported");
+      throw new Error("Clipboard empty");
     } catch {
-      // Layer 2: Fallback — select all input biar user langsung Ctrl+V / tap & hold → Paste
       inputRef.current?.select();
       toast({
-        title: "Gagal Menempel",
-        description: "Silakan tempel URL secara manual (tekan & tahan input → Paste)",
+        title: "Paste Failed",
+        description: "Please paste the URL manually (press & hold input → Paste)",
         variant: "destructive",
       });
     }
@@ -65,36 +63,60 @@ const Index = () => {
     setResult(null);
 
     if (!url.trim()) {
-      setError("Silakan masukkan URL TikTok");
+      setError("Please enter a TikTok URL");
       return;
     }
 
     if (!isValidTikTokUrl(url)) {
-      setError("Silakan masukkan URL TikTok yang valid");
+      setError("Please enter a valid TikTok URL");
       return;
     }
 
     setLoading(true);
-
     try {
       const data = await downloadTikTok(url);
       if (data.status) {
         setResult(data);
       } else {
-        setError("Gagal mengambil video. Silakan coba lagi.");
+        setError("Failed to fetch video. Please try again.");
       }
     } catch {
-      setError("Terjadi kesalahan. Silakan coba lagi.");
+      setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="min-h-screen bg-background px-4 pb-12 pt-2 md:px-6"
-    >
+    <div ref={containerRef} className="min-h-screen bg-background px-4 pb-12 pt-2 md:px-6">
+      {/* Top Right Controls: History Button (place this next to your theme toggle) */}
+      <div className="fixed right-4 top-4 z-30 flex items-center gap-2">
+        {/* Your existing theme toggle button should be here */}
+        {/* <ThemeToggle /> */}
+        
+        {/* History Button — placed to the RIGHT of theme toggle */}
+        <button
+          onClick={() => setShowHistory(true)}
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl border-2 border-foreground bg-card text-foreground shadow-[3px_3px_0_0_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          aria-label="Download History"
+        >
+          <History className="h-5 w-5" />
+          {history.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-black text-white">
+              {history.length > 9 ? "9+" : history.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <DownloadHistory
+        history={history}
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        onRemove={removeFromHistory}
+        onClear={clearHistory}
+      />
+
       <div className="mx-auto max-w-2xl">
         <Header />
 
@@ -110,9 +132,9 @@ const Index = () => {
               <Link2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-foreground">Unduh Video</h2>
+              <h2 className="text-lg font-black text-foreground">Download Video</h2>
               <p className="text-xs font-medium text-muted-foreground">
-                Tanpa watermark, gratis & cepat
+                Without watermark, free & fast
               </p>
             </div>
           </div>
@@ -128,29 +150,27 @@ const Index = () => {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
-                  placeholder="Tempel link TikTok di sini..."
+                  placeholder="Paste TikTok link here..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   className="h-12 rounded-xl border-2 border-foreground bg-background pr-24 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-                  {/* Clear button */}
                   {url && (
                     <button
                       type="button"
                       onClick={() => setUrl("")}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label="Hapus"
+                      aria-label="Clear"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   )}
-                  {/* Paste button */}
                   <button
                     type="button"
                     onClick={handlePaste}
                     className="rounded-lg border-2 border-foreground bg-secondary p-2 text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                    aria-label="Tempel dari clipboard"
+                    aria-label="Paste from clipboard"
                   >
                     <Clipboard className="h-4 w-4" />
                   </button>
@@ -163,14 +183,14 @@ const Index = () => {
                 className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60"
               >
                 <Download className="mr-2 h-5 w-5" />
-                {loading ? "Memproses..." : "Unduh"}
+                {loading ? "Processing..." : "Download"}
               </Button>
             </div>
           </form>
 
           <div className="mt-5 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/30 p-3 text-center">
             <p className="text-xs font-semibold text-muted-foreground">
-              Tempel link video atau slideshow TikTok untuk mengunduh tanpa watermark
+              Paste a TikTok video or slideshow link to download without watermark
             </p>
           </div>
         </motion.div>
@@ -194,15 +214,11 @@ const Index = () => {
 
         {/* Loading */}
         {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-6"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
             <div className="rounded-2xl border-2 border-foreground bg-card p-6 shadow-[5px_5px_0px_0px_hsl(var(--foreground))]">
               <LoadingSpinner />
               <p className="mt-3 text-center text-sm font-black uppercase tracking-wide text-muted-foreground">
-                Mengambil data video...
+                Fetching video data...
               </p>
             </div>
           </motion.div>
@@ -229,7 +245,7 @@ const Index = () => {
           className="mt-10 text-center"
         >
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Unduh video TikTok tanpa watermark secara gratis
+            Download TikTok videos without watermark for free
           </p>
         </motion.footer>
       </div>

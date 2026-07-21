@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Download, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
+import { Download, Video, Image, Sparkles, User, FileVideo, Volume2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useDownloadHistory } from "@/hooks/useDownloadHistory";
 import type { TikTokResult } from "@/lib/tiktok";
 import { generateFileName } from "@/lib/tiktok";
 
@@ -12,6 +13,7 @@ interface DownloadCardProps {
 
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
+  const { addToHistory } = useDownloadHistory();
   const [capturedThumb, setCapturedThumb] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -33,7 +35,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     video.playsInline = true;
     video.preload = "auto";
 
-    // Attach hidden ke DOM — PENTING buat mobile browser
     video.style.position = "fixed";
     video.style.opacity = "0";
     video.style.pointerEvents = "none";
@@ -65,8 +66,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         if (!ctx) throw new Error("No 2d context");
 
         ctx.drawImage(video, 0, 0, w, h);
-
-        // Validasi: cek pixel nggak blank/transparent
         const pixel = ctx.getImageData(0, 0, 1, 1).data;
         if (pixel[3] === 0) throw new Error("Blank frame");
 
@@ -98,7 +97,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     video.addEventListener("error", onError);
 
     video.load();
-
     return cleanup;
   }, [result.video, isSlideshow, capturedThumb, thumbError]);
 
@@ -107,9 +105,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     return cleanup;
   }, [captureFrame]);
 
-  // ─── PRIORITAS THUMBNAIL ────────────────────────────────
-  // Video: API cover > captured frame > none
-  // Slideshow: foto pertama langsung
+  // ─── THUMBNAIL ──────────────────────────────────────────
   const thumbnailSrc = isSlideshow
     ? result.images[0] || null
     : result.cover || capturedThumb || null;
@@ -120,12 +116,20 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const hdFileName = generateFileName("tikmon_hd", "mp4");
   const audioFileName = generateFileName("tikmon_audio", "mp3");
 
-  const handleDownload = async (url: string | null, filename: string) => {
+  const handleDownload = async (
+    url: string | null,
+    filename: string,
+    type: "video" | "audio" | "image"
+  ) => {
     if (!url) {
-      toast({ title: "URL tidak tersedia", description: "Link tidak ditemukan.", variant: "destructive" });
+      toast({
+        title: "URL not available",
+        description: "Link not found.",
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: "Memulai download...", description: filename });
+    toast({ title: "Starting download...", description: filename });
     try {
       const response = await fetch(url, { method: "GET" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -139,11 +143,32 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-      toast({ title: "Download dimulai!", description: filename });
+
+      addToHistory({
+        type,
+        label: filename,
+        url,
+        author: result.author,
+        desc: result.desc,
+      });
+
+      toast({ title: "Download started!", description: filename });
     } catch (err) {
       console.warn("[Download] CORS blocked, opening in new tab:", err);
       window.open(url, "_blank", "noopener,noreferrer");
-      toast({ title: "Dibuka di tab baru", description: "Tekan titik 3 (⋮) → Download untuk menyimpan file." });
+
+      addToHistory({
+        type,
+        label: filename,
+        url,
+        author: result.author,
+        desc: result.desc,
+      });
+
+      toast({
+        title: "Opened in new tab",
+        description: "Tap the menu (⋮) → Download to save the file.",
+      });
     }
   };
 
@@ -158,8 +183,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         {/* Preview Area */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
-
-            {/* Thumbnail */}
             {hasThumbnail ? (
               <img
                 src={thumbnailSrc}
@@ -167,13 +190,12 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 className="h-full w-full object-cover"
                 loading="eager"
                 onError={() => {
-                  console.warn("[Thumbnail] Image failed");
+                  console.warn("[Thumbnail] Failed");
                   setThumbError(true);
                 }}
               />
             ) : null}
 
-            {/* Placeholder */}
             {!hasThumbnail && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
                 {isSlideshow ? (
@@ -182,12 +204,11 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                   <Video className="h-10 w-10 text-foreground" />
                 )}
                 <span className="text-[10px] font-black uppercase text-foreground">
-                  {isSlideshow ? `${result.images.length} Foto` : isCapturing ? "Loading..." : "Video"}
+                  {isSlideshow ? `${result.images.length} Photos` : isCapturing ? "Loading..." : "Video"}
                 </span>
               </div>
             )}
 
-            {/* Badges */}
             {hasVideo && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />
@@ -197,7 +218,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             {isSlideshow && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-accent px-2 py-0.5 text-[10px] font-black uppercase text-accent-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Image className="h-3 w-3" />
-                {result.images.length} Foto
+                {result.images.length} Photos
               </div>
             )}
           </div>
@@ -212,50 +233,52 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </div>
               <p className="text-sm font-black text-primary">@{result.author}</p>
             </div>
-            <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">{result.desc}</p>
+            <p className="line-clamp-2 text-sm font-semibold text-foreground md:text-base">
+              {result.desc}
+            </p>
           </div>
 
-          {/* Download Buttons — NO WM */}
+          {/* Download Buttons */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {hasVideo && (
               <Button
                 size="lg"
-                onClick={() => handleDownload(result.video, videoFileName)}
+                onClick={() => handleDownload(result.video, videoFileName, "video")}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <FileVideo className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">No WM</span>
-                <span className="sm:hidden">Video</span>
+                VIDEO MP4 SD
               </Button>
             )}
 
             {hasHd && (
               <Button
                 size="lg"
-                onClick={() => handleDownload(result.video_hd, hdFileName)}
+                onClick={() => handleDownload(result.video_hd, hdFileName, "video")}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-emerald-500 font-black uppercase tracking-wide text-white shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">HD Video</span>
-                <span className="sm:hidden">HD</span>
+                VIDEO MP4 HD
               </Button>
             )}
 
             {hasAudio && (
               <Button
                 size="lg"
-                onClick={() => handleDownload(result.audio, audioFileName)}
+                onClick={() => handleDownload(result.audio, audioFileName, "audio")}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-accent font-black uppercase tracking-wide text-accent-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Volume2 className="mr-2 h-4 w-4" />
-                Audio
+                AUDIO MP3
               </Button>
             )}
           </div>
 
-          <p className="text-xs font-semibold text-muted-foreground">
-            ℹ️ Kualitas video mengikuti kualitas asli di TikTok.
-          </p>
+          {/* Info — CENTER + ICON (not emoji) + ENGLISH */}
+          <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <Info className="h-3.5 w-3.5 shrink-0" />
+            <span>Video quality follows the original quality on TikTok.</span>
+          </div>
 
           {/* Slideshow */}
           {isSlideshow && (
@@ -264,10 +287,15 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 <div className="flex h-6 w-6 items-center justify-center rounded-md border-2 border-foreground bg-primary shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                   <Image className="h-3 w-3 text-primary-foreground" />
                 </div>
-                <p className="text-sm font-black uppercase text-foreground">Slideshow ({result.images.length} foto)</p>
+                <p className="text-sm font-black uppercase text-foreground">
+                  Slideshow ({result.images.length} photos)
+                </p>
               </div>
 
-              <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div
+                className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
                 {result.images.map((img, index) => {
                   const slideFileName = generateFileName(`tikmon_slide${index + 1}`, "jpg");
                   return (
@@ -276,10 +304,15 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      onClick={() => handleDownload(img, slideFileName)}
+                      onClick={() => handleDownload(img, slideFileName, "image")}
                       className="group relative flex-shrink-0 w-32 h-40 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none snap-start"
                     >
-                      <img src={img} alt={`Slide ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
+                      <img
+                        src={img}
+                        alt={`Slide ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-primary/90 opacity-0 transition-opacity group-hover:opacity-100">
                         <Download className="h-5 w-5 text-primary-foreground" />
                       </div>
