@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2, Film } from "lucide-react";
+import { Download, Video, Image, Sparkles, User, FileVideo, Volume2, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
@@ -20,6 +20,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const hasWm = !!result.wm && !isSlideshow;
   const hasAudio = !!result.audio;
 
+  // Prioritas: animated GIF > static cover > slideshow image
   const thumbnailSrc = result.coverAnimated || result.cover || (isSlideshow ? result.images[0] : null);
   const hasThumbnail = !!thumbnailSrc && !thumbError;
 
@@ -74,7 +75,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 className="h-full w-full object-cover"
                 loading="eager"
                 onError={() => {
-                  console.warn("[Thumbnail] Failed:", thumbnailSrc?.substring(0, 60));
+                  console.warn("[Thumbnail] Failed to load");
                   setThumbError(true);
                 }}
               />
