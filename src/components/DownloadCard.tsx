@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TikTokResult } from "@/lib/tiktok";
 
@@ -50,10 +50,18 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               )}
             </div>
             {/* HD Badge */}
-            <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
-              <Sparkles className="h-3 w-3" />
-              HD
-            </div>
+            {!isSlideshow && result.video_hd && (
+              <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+                <Sparkles className="h-3 w-3" />
+                HD
+              </div>
+            )}
+            {isSlideshow && (
+              <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-accent px-2 py-0.5 text-[10px] font-black uppercase text-accent-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
+                <Image className="h-3 w-3" />
+                {result.images.length} Foto
+              </div>
+            )}
           </div>
         </div>
 
@@ -72,19 +80,34 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
           </div>
 
           {/* Download Buttons */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Video No WM HD — PRIORITAS UTAMA */}
+            {result.video_hd && (
+              <Button
+                size="lg"
+                onClick={() => handleDownload(result.video_hd!, `tiktok_hd_${Date.now()}.mp4`)}
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+              >
+                <MonitorPlay className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">No WM HD</span>
+                <span className="sm:hidden">HD</span>
+              </Button>
+            )}
+
+            {/* Video No WM SD */}
             {result.video && (
               <Button
                 size="lg"
                 onClick={() => handleDownload(result.video!, `tiktok_${Date.now()}.mp4`)}
-                className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-primary/80 font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Download className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Tanpa WM</span>
-                <span className="sm:hidden">No WM</span>
+                <span className="hidden sm:inline">No WM SD</span>
+                <span className="sm:hidden">SD</span>
               </Button>
             )}
 
+            {/* Video With WM */}
             {result.wm && (
               <Button
                 size="lg"
@@ -97,6 +120,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
+            {/* Audio Only */}
             {result.audio && (
               <Button
                 size="lg"
@@ -117,7 +141,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                   <Image className="h-3 w-3 text-primary-foreground" />
                 </div>
                 <p className="text-sm font-black uppercase text-foreground">
-                  Slideshow ({result.images.length})
+                  Slideshow ({result.images.length} foto)
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
