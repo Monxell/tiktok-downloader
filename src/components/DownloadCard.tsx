@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2, Play } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
@@ -12,18 +12,20 @@ interface DownloadCardProps {
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
 
-  // ─── UNIVERSAL DOWNLOAD (works for video, audio, images) ───
+  // ─── DOWNLOAD HANDLER ────────────────────────────────────
   const handleDownload = async (url: string | null, filename: string) => {
     if (!url) {
       toast({ title: "URL tidak tersedia", description: "Link tidak ditemukan.", variant: "destructive" });
       return;
     }
+
     toast({ title: "Memulai download...", description: filename });
 
     try {
-      // Strategy 1: Fetch as blob (direct download)
+      // Try to fetch as blob for direct download
       const response = await fetch(url, { method: "GET" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -34,20 +36,16 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
-      console.warn("[Download] Fetch gagal, trying <a download>:", err);
-
-      // Strategy 2: <a download> without target="_blank" (direct download)
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast({ title: "Memulai download...", description: filename });
+      // CORS blocked or network error — open in new tab
+      console.warn("[Download] CORS blocked, opening in new tab:", err);
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast({
+        title: "Dibuka di tab baru",
+        description: "Tekan titik 3 (⋮) → Download untuk menyimpan file.",
+      });
     }
   };
 
@@ -66,26 +64,12 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
       <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-        {/* Preview Area */}
+        {/* Preview Area — NO VIDEO PREVIEW, only image/placeholder */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
-            {/* VIDEO: Show first frame using <video> tag */}
-            {hasVideo && result.video ? (
-              <video
-                src={result.video}
-                className="h-full w-full object-cover"
-                preload="metadata"
-                muted
-                playsInline
-                onLoadedData={(e) => {
-                  console.log("[Video Preview] First frame loaded");
-                  // Pause at first frame
-                  e.currentTarget.currentTime = 0.1;
-                }}
-              />
-            ) : isSlideshow && result.images[0] ? (
-              /* SLIDESHOW: Show first image as thumbnail */
+            {/* SLIDESHOW: First image as thumbnail */}
+            {isSlideshow && result.images[0] ? (
               <img
                 src={result.images[0]}
                 alt="Thumbnail"
@@ -98,7 +82,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 }}
               />
             ) : result.cover ? (
-              /* Fallback: API cover image */
+              /* VIDEO: Cover image from API */
               <img
                 src={result.cover}
                 alt="Thumbnail"
@@ -112,15 +96,15 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               />
             ) : null}
 
-            {/* Overlay: always visible */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${(hasVideo && result.video) || (isSlideshow && result.images[0]) || result.cover ? 'bg-background/30' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
+            {/* Placeholder overlay — always visible */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${(isSlideshow && result.images[0]) || result.cover ? 'bg-background/30' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
               {isSlideshow ? (
                 <Image className="h-10 w-10 text-foreground drop-shadow-md" />
               ) : (
-                <Play className="h-10 w-10 text-foreground drop-shadow-md" />
+                <Video className="h-10 w-10 text-foreground drop-shadow-md" />
               )}
               <span className="text-[10px] font-black uppercase text-foreground drop-shadow-md">
-                {isSlideshow ? `${result.images.length} Foto` : "Preview"}
+                {isSlideshow ? `${result.images.length} Foto` : "Video"}
               </span>
             </div>
 
@@ -181,7 +165,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             ℹ️ Kualitas video mengikuti kualitas asli di TikTok.
           </p>
 
-          {/* Slideshow - Horizontal Scrollable */}
+          {/* Slideshow — Horizontal Scrollable */}
           {isSlideshow && (
             <div className="mt-1">
               <div className="mb-3 flex items-center gap-2">
