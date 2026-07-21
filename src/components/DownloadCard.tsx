@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User, FileVideo, Volume2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
@@ -33,7 +33,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
-      console.warn("[Video Download] Fetch gagal, fallback ke tab:", err);
       window.open(url, "_blank", "noopener,noreferrer");
       toast({ title: "Dibuka di tab baru", description: "Tekan Ctrl+S untuk menyimpan video." });
     }
@@ -60,7 +59,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
-      console.warn("[Audio Download] Fetch gagal, using direct link:", err);
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
@@ -68,7 +66,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast({ title: "Membuka link audio...", description: "Audio akan otomatis tersimpan atau buka di tab baru." });
+      toast({ title: "Membuka link audio...", description: "Audio akan otomatis tersimpan." });
     }
   };
 
@@ -99,36 +97,48 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       className="w-full rounded-2xl border-2 border-foreground bg-card p-5 shadow-[5px_5px_0px_0px_hsl(var(--foreground))] md:p-6"
     >
       <div className="flex flex-col gap-5 md:flex-row md:gap-6">
-        {/* Preview */}
+        {/* Preview Area */}
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
-            {result.cover ? (
+
+            {/* Strategy 1: Video preview (most reliable) */}
+            {result.video && !isSlideshow ? (
+              <video
+                src={result.video}
+                poster={result.cover || undefined}
+                className="h-full w-full object-cover"
+                preload="metadata"
+                playsInline
+                muted
+                loop
+                onLoadedData={() => console.log("[Video Preview] Loaded")}
+                onError={() => console.warn("[Video Preview] Failed to load")}
+              />
+            ) : result.cover ? (
+              /* Strategy 2: Cover image */
               <img
                 src={result.cover}
                 alt="Thumbnail"
                 className="h-full w-full object-cover"
                 referrerPolicy="no-referrer"
-                crossOrigin="anonymous"
                 loading="eager"
-                onLoad={() => console.log("[Thumbnail] Loaded:", result.cover)}
                 onError={(e) => {
-                  console.warn("[Thumbnail] Failed:", result.cover);
+                  console.warn("[Cover] Failed to load:", result.cover);
                   e.currentTarget.style.display = 'none';
                 }}
               />
             ) : null}
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/80 gap-2">
+            {/* Strategy 3: Placeholder (always visible as fallback) */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${result.cover || result.video ? 'bg-background/40' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
               {isSlideshow ? (
-                <Image className="h-10 w-10 text-muted-foreground" />
+                <Image className="h-10 w-10 text-foreground drop-shadow-md" />
               ) : (
-                <Video className="h-10 w-10 text-muted-foreground" />
+                <Play className="h-10 w-10 text-foreground drop-shadow-md" />
               )}
-              {!result.cover && (
-                <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                  {isSlideshow ? "Slideshow" : "Video"}
-                </span>
-              )}
+              <span className="text-[10px] font-black uppercase text-foreground drop-shadow-md">
+                {isSlideshow ? `${result.images.length} Foto` : "Preview"}
+              </span>
             </div>
 
             {hasVideo && (
@@ -184,12 +194,11 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             )}
           </div>
 
-          {/* Info */}
           <p className="text-xs font-semibold text-muted-foreground">
-            ℹ️ Kualitas video mengikuti kualitas asli di TikTok. API gratisan tidak menyediakan versi HD/SD/WM terpisah.
+            ℹ️ Kualitas video mengikuti kualitas asli di TikTok.
           </p>
 
-          {/* Slideshow Images - HORIZONTAL SCROLLABLE */}
+          {/* Slideshow - Horizontal Scrollable */}
           {isSlideshow && (
             <div className="mt-1">
               <div className="mb-3 flex items-center gap-2">
@@ -211,12 +220,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                       onClick={() => handleImageDownload(img, slideFileName)}
                       className="group relative flex-shrink-0 w-32 h-40 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none snap-start"
                     >
-                      <img 
-                        src={img} 
-                        alt={`Slide ${index + 1}`} 
-                        className="h-full w-full object-cover" 
-                        loading="lazy"
-                      />
+                      <img src={img} alt={`Slide ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-primary/90 opacity-0 transition-opacity group-hover:opacity-100">
                         <Download className="h-5 w-5 text-primary-foreground" />
                       </div>
