@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
-import { Download, Clipboard, AlertCircle, Link2 } from "lucide-react";
+import { Download, Clipboard, AlertCircle, Link2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
@@ -16,6 +16,7 @@ const Index = () => {
   const [result, setResult] = useState<TikTokResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,24 +29,35 @@ const Index = () => {
     }
   }, []);
 
-  const handlePaste = async () => {
+  // ─── PASTE FIX: Robust dengan fallback ───────────────────
+  const handlePaste = useCallback(async () => {
+    // Fokus input dulu
+    inputRef.current?.focus();
+
     try {
-      const text = await navigator.clipboard.readText();
-      setUrl(text);
-      if (isValidTikTokUrl(text)) {
-        toast({
-          title: "URL Ditempel",
-          description: "Link TikTok terdeteksi!",
-        });
+      // Layer 1: Modern Clipboard API (hanya work di HTTPS + user gesture)
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text?.trim()) {
+          setUrl(text.trim());
+          if (isValidTikTokUrl(text.trim())) {
+            toast({ title: "URL Ditempel", description: "Link TikTok terdeteksi!" });
+          }
+          return;
+        }
       }
+      // Kalau clipboard kosong atau API nggak ada
+      throw new Error("Clipboard empty or unsupported");
     } catch {
+      // Layer 2: Fallback — select all input biar user langsung Ctrl+V / tap & hold → Paste
+      inputRef.current?.select();
       toast({
         title: "Gagal Menempel",
-        description: "Silakan tempel URL secara manual",
+        description: "Silakan tempel URL secara manual (tekan & tahan input → Paste)",
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,26 +121,46 @@ const Index = () => {
             <div className="flex flex-col gap-3 md:flex-row">
               <div className="relative flex-1">
                 <Input
+                  ref={inputRef}
                   type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   placeholder="Tempel link TikTok di sini..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="h-12 rounded-xl border-2 border-foreground bg-background pr-12 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-12 rounded-xl border-2 border-foreground bg-background pr-24 text-base font-semibold shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all placeholder:font-medium placeholder:text-muted-foreground focus:shadow-[5px_5px_0px_0px_hsl(var(--foreground))] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
-                <button
-                  type="button"
-                  onClick={handlePaste}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border-2 border-foreground bg-secondary p-2 text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                  aria-label="Tempel dari clipboard"
-                >
-                  <Clipboard className="h-4 w-4" />
-                </button>
+                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                  {/* Clear button */}
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={() => setUrl("")}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="Hapus"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                  {/* Paste button */}
+                  <button
+                    type="button"
+                    onClick={handlePaste}
+                    className="rounded-lg border-2 border-foreground bg-secondary p-2 text-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                    aria-label="Tempel dari clipboard"
+                  >
+                    <Clipboard className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"
                 size="lg"
                 disabled={loading}
-                className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_0px_hsl(var(--foreground))]"
+                className="h-12 rounded-xl border-2 border-foreground bg-primary px-7 font-black text-primary-foreground shadow-[4px_4px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_hsl(var(--foreground))] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-60"
               >
                 <Download className="mr-2 h-5 w-5" />
                 {loading ? "Memproses..." : "Unduh"}
@@ -136,7 +168,6 @@ const Index = () => {
             </div>
           </form>
 
-          {/* Instructions */}
           <div className="mt-5 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/30 p-3 text-center">
             <p className="text-xs font-semibold text-muted-foreground">
               Tempel link video atau slideshow TikTok untuk mengunduh tanpa watermark
@@ -144,7 +175,7 @@ const Index = () => {
           </div>
         </motion.div>
 
-        {/* Error Message */}
+        {/* Error */}
         <AnimatePresence>
           {error && (
             <motion.div
@@ -161,7 +192,7 @@ const Index = () => {
           )}
         </AnimatePresence>
 
-        {/* Loading State */}
+        {/* Loading */}
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -191,7 +222,6 @@ const Index = () => {
           )}
         </AnimatePresence>
 
-        {/* Footer */}
         <motion.footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

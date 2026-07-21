@@ -67,7 +67,84 @@ async function getOEmbedThumbnail(originalUrl: string): Promise<string | null> {
 }
 
 /* ============================================================
-   SOURCE 1: TIKWM (PRIMARY)
+   SOURCE 1: TIKLYDOWN (PRIMARY — Audio Direct Download)
+   ============================================================ */
+
+async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
+  try {
+    const res = await axios.get("https://api.tiklydown.eu.org/api/download", {
+      params: { url },
+      timeout: 15000,
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    const d = res.data;
+    if (!d || d.status === "error" || d.status === false) return null;
+
+    const result = d.result || d;
+    const videoObj = result.video || result;
+
+    const videoUrl = resolveUrl(videoObj, undefined, "noWatermark", "play", "url", "download");
+    const videoHd = resolveUrl(videoObj, undefined, "hd", "hdplay", "hd_play");
+    const wmUrl = resolveUrl(videoObj, undefined, "watermark", "wm", "wmplay");
+
+    // Audio — TiklyDown biasanya direct download
+    let audioUrl: string | null = null;
+    if (typeof result.audio === "string") {
+      audioUrl = result.audio;
+    } else if (result.audio && typeof result.audio === "object") {
+      audioUrl = result.audio.url || result.audio.playUrl || result.audio.music || result.audio.downloadAddr || null;
+    }
+    if (!audioUrl && result.music) {
+      if (typeof result.music === "string") audioUrl = result.music;
+      else if (typeof result.music === "object") {
+        audioUrl = result.music.url || result.music.playUrl || result.music.downloadAddr || null;
+      }
+    }
+
+    // Cover
+    let cover: string | null = null;
+    const candidates = [
+      result.cover, result.thumbnail, result.thumb, result.image,
+      result.video?.cover, result.video?.thumbnail, result.video?.originCover,
+      result.video?.dynamicCover, result.video?.origin_cover,
+    ];
+    for (const c of candidates) {
+      if (c && typeof c === "string" && c.startsWith("http")) {
+        cover = c;
+        break;
+      }
+      if (Array.isArray(c) && c[0] && typeof c[0] === "string" && c[0].startsWith("http")) {
+        cover = c[0];
+        break;
+      }
+    }
+
+    console.log("[TiklyDown] video:", !!videoUrl, "audio:", !!audioUrl, "cover:", !!cover);
+
+    return {
+      status: true,
+      video: videoUrl,
+      video_hd: videoHd,
+      wm: wmUrl,
+      audio: audioUrl,
+      images: Array.isArray(result.images) ? result.images : [],
+      author: result.author?.nickname || result.author?.username || result.author?.uniqueId || "-",
+      desc: result.title || result.desc || result.description || "-",
+      cover: cover || undefined,
+      originalUrl: url,
+    };
+  } catch (error) {
+    console.warn("[TiklyDown] Error:", (error as AxiosError).message);
+    return null;
+  }
+}
+
+/* ============================================================
+   SOURCE 2: TIKWM (FALLBACK — Video/HD/Cover, Audio Redirect)
    ============================================================ */
 
 async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
@@ -96,8 +173,8 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
     const videoUrl = resolveUrl(data.play, host);
     const videoHd = resolveUrl(data.hdplay, host) || resolveUrl(data.hd_play, host);
     const wmUrl = resolveUrl(data.wmplay, host) || resolveUrl(data.wm_play, host);
-    const audio = resolveUrl(data.music, host);
     const cover = resolveUrl(data.cover, host) || resolveUrl(data.origin_cover, host) || resolveUrl(data.thumbnail, host);
+    const audio = resolveUrl(data.music, host); // Bisa redirect
 
     const images: string[] = [];
     if (Array.isArray(data.images)) {
@@ -107,7 +184,7 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
       }
     }
 
-    console.log("[TikWM] video:", !!videoUrl, "hd:", !!videoHd, "wm:", !!wmUrl, "audio:", !!audio, "cover:", !!cover, "images:", images.length);
+    console.log("[TikWM] video:", !!videoUrl, "hd:", !!videoHd, "audio:", !!audio, "cover:", !!cover);
 
     if (!videoUrl && images.length === 0) return null;
 
@@ -131,67 +208,6 @@ async function fetchFromTikWM(url: string): Promise<TikTokResult | null> {
 }
 
 /* ============================================================
-   SOURCE 2: TIKLYDOWN (FALLBACK)
-   ============================================================ */
-
-async function fetchFromTiklyDown(url: string): Promise<TikTokResult | null> {
-  try {
-    const res = await axios.get("https://api.tiklydown.eu.org/api/download", {
-      params: { url },
-      timeout: 15000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    });
-
-    const d = res.data;
-    if (!d || d.status === "error" || d.status === false) return null;
-
-    const result = d.result || d;
-    const videoObj = result.video || result;
-
-    const videoUrl = resolveUrl(videoObj, undefined, "noWatermark", "play", "url");
-    const videoHd = resolveUrl(videoObj, undefined, "hd", "hdplay");
-    const wmUrl = resolveUrl(videoObj, undefined, "watermark", "wm");
-
-    let audioUrl: string | null = null;
-    if (typeof result.audio === "string") audioUrl = result.audio;
-    else if (result.audio && typeof result.audio === "object") {
-      audioUrl = result.audio.url || result.audio.playUrl || null;
-    }
-    if (!audioUrl && result.music) {
-      audioUrl = typeof result.music === "string" ? result.music : result.music.url || null;
-    }
-
-    let cover: string | null = null;
-    const candidates = [result.cover, result.thumbnail, result.video?.cover, result.video?.originCover];
-    for (const c of candidates) {
-      if (c && typeof c === "string" && c.startsWith("http")) {
-        cover = c;
-        break;
-      }
-    }
-
-    return {
-      status: true,
-      video: videoUrl,
-      video_hd: videoHd,
-      wm: wmUrl,
-      audio: audioUrl,
-      images: Array.isArray(result.images) ? result.images : [],
-      author: result.author?.nickname || result.author?.username || "-",
-      desc: result.title || result.desc || "-",
-      cover: cover || undefined,
-      originalUrl: url,
-    };
-  } catch (error) {
-    console.warn("[TiklyDown] Error:", (error as AxiosError).message);
-    return null;
-  }
-}
-
-/* ============================================================
    RETRY & MAIN
    ============================================================ */
 
@@ -207,20 +223,24 @@ async function withRetry<T>(fn: () => Promise<T | null>, retries = 3, delayMs = 
 }
 
 export const downloadTikTok = async (url: string): Promise<TikTokResult> => {
-  let result = await withRetry(() => fetchFromTikWM(url), 3, 1500);
+  // PRIMARY: TiklyDown (audio direct)
+  let result = await withRetry(() => fetchFromTiklyDown(url), 3, 1200);
 
+  // FALLBACK: TikWM
   if (!result || !result.video) {
-    console.log("[Main] Fallback to TiklyDown...");
-    result = await withRetry(() => fetchFromTiklyDown(url), 2, 1200);
+    console.log("[Main] Fallback to TikWM...");
+    result = await withRetry(() => fetchFromTikWM(url), 3, 1500);
   }
 
-  if (result && result.status && !result.cover && result.originalUrl) {
-    const oEmbedThumb = await getOEmbedThumbnail(result.originalUrl);
-    if (oEmbedThumb) result.cover = oEmbedThumb;
-  }
-
-  if (!result?.cover && result?.images.length > 0) {
-    result.cover = result.images[0];
+  // Thumbnail fallback
+  if (result && result.status) {
+    if (!result.cover && result.originalUrl) {
+      const oEmbedThumb = await getOEmbedThumbnail(result.originalUrl);
+      if (oEmbedThumb) result.cover = oEmbedThumb;
+    }
+    if (!result.cover && result.images.length > 0) {
+      result.cover = result.images[0];
+    }
   }
 
   if (result && result.status && (result.video || result.images.length > 0)) {

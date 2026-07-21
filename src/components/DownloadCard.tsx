@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Download, Video, Image, Sparkles, User, FileVideo, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const hasAudio = !!result.audio;
 
   // ─── CAPTURE 1 FRAME DARI VIDEO ─────────────────────────
-  useEffect(() => {
+  const captureFrame = useCallback(() => {
     if (!result.video || isSlideshow || capturedThumb || thumbError) return;
 
     setIsCapturing(true);
@@ -33,7 +33,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     video.playsInline = true;
     video.preload = "auto";
 
-    // Attach ke DOM (hidden) — penting buat mobile browser
+    // Attach hidden ke DOM — PENTING buat mobile browser
     video.style.position = "fixed";
     video.style.opacity = "0";
     video.style.pointerEvents = "none";
@@ -66,7 +66,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
 
         ctx.drawImage(video, 0, 0, w, h);
 
-        // Cek pixel — kalau transparent/blank, jangan pakai
+        // Validasi: cek pixel nggak blank/transparent
         const pixel = ctx.getImageData(0, 0, 1, 1).data;
         if (pixel[3] === 0) throw new Error("Blank frame");
 
@@ -94,7 +94,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         cleanup();
       }
     });
-
     video.addEventListener("seeked", onSeeked);
     video.addEventListener("error", onError);
 
@@ -103,8 +102,14 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     return cleanup;
   }, [result.video, isSlideshow, capturedThumb, thumbError]);
 
+  useEffect(() => {
+    const cleanup = captureFrame();
+    return cleanup;
+  }, [captureFrame]);
+
   // ─── PRIORITAS THUMBNAIL ────────────────────────────────
-  // Slideshow: foto pertama | Video: API cover > captured frame > none
+  // Video: API cover > captured frame > none
+  // Slideshow: foto pertama langsung
   const thumbnailSrc = isSlideshow
     ? result.images[0] || null
     : result.cover || capturedThumb || null;
