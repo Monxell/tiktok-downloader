@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Download, Music, Video, Image, Sparkles, User, MonitorPlay } from "lucide-react";
+import { Download, Music, Video, Image, Sparkles, User, MonitorPlay, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import type { TikTokResult } from "@/lib/tiktok";
 
 interface DownloadCardProps {
@@ -8,15 +9,84 @@ interface DownloadCardProps {
 }
 
 const DownloadCard = ({ result }: DownloadCardProps) => {
-  const handleDownload = (url: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const { toast } = useToast();
+
+  /**
+   * Direct Download Handler
+   * -----------------------
+   * 1. Coba fetch video sebagai Blob (true direct download)
+   * 2. Kalau CORS memblokir, fallback buka di tab baru
+   * 
+   * Note: TikTok CDN sering blokir CORS untuk fetch.
+   * Kalau mau 100% direct download tanpa fail,
+   * perlu backend proxy (saya kasih contoh di bawah).
+   */
+  const handleDownload = async (url: string, filename: string) => {
+    if (!url) {
+      toast({
+        title: "URL tidak tersedia",
+        description: "Link download tidak ditemukan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Memulai download...",
+      description: "Sedang mengambil file",
+    });
+
+    try {
+      // ─── STRATEGI 1: Fetch as Blob (True Direct Download) ───
+      const response = await fetch(url, {
+        method: "GET",
+        // Jangan pakai mode: 'no-cors' — itu bikin response opaque,
+        // tidak bisa di-convert ke Blob yang bisa didownload.
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename; // Nama file yang di-save
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Bersihkan memory
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+
+      toast({
+        title: "Download dimulai!",
+        description: filename,
+      });
+    } catch (err) {
+      // ─── STRATEGI 2: Fallback — Buka di Tab Baru ───
+      // TikTok CDN sering blokir CORS, jadi fetch gagal.
+      // Solusi: buka di tab baru, user tinggal Ctrl+S / titik 3 → Download.
+      console.warn("[Direct Download] Fetch gagal (CORS?), fallback ke tab baru:", err);
+
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === "undefined") {
+        // Popup diblokir
+        toast({
+          title: "Popup diblokir",
+          description: "Izinkan popup untuk site ini, atau klik kanan link → Save as.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Dibuka di tab baru",
+          description: "Tekan Ctrl+S atau titik 3 → Download untuk menyimpan.",
+        });
+      }
+    }
   };
 
   const isSlideshow = result.images.length > 0;
@@ -49,7 +119,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 <Video className="h-8 w-8 text-foreground" />
               )}
             </div>
-            {/* HD Badge */}
             {!isSlideshow && result.video_hd && (
               <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-lg border-2 border-foreground bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-primary-foreground shadow-[2px_2px_0px_0px_hsl(var(--foreground))]">
                 <Sparkles className="h-3 w-3" />
@@ -81,7 +150,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
 
           {/* Download Buttons */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* Video No WM HD — PRIORITAS UTAMA */}
             {result.video_hd && (
               <Button
                 size="lg"
@@ -94,7 +162,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
-            {/* Video No WM SD */}
             {result.video && (
               <Button
                 size="lg"
@@ -107,7 +174,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
-            {/* Video With WM */}
             {result.wm && (
               <Button
                 size="lg"
@@ -120,7 +186,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
               </Button>
             )}
 
-            {/* Audio Only */}
             {result.audio && (
               <Button
                 size="lg"
