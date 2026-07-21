@@ -95,7 +95,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
   const hasAudio = !!result.audio;
 
   // Determine thumbnail source: captured frame > API cover > images[0] > none
-  const thumbnailSrc = capturedThumbnail || result.cover || (isSlideshow ? result.images[0] : null);
+  const thumbnailSrc = result.cover || capturedThumbnail || (isSlideshow ? result.images[0] : null);
   const hasThumbnail = !!thumbnailSrc;
 
   const videoFileName = generateFileName("tikmon", "mp4");
