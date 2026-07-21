@@ -12,39 +12,16 @@ interface DownloadCardProps {
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
 
-  const handleVideoDownload = async (url: string | null, filename: string) => {
+  // ─── UNIVERSAL DOWNLOAD (works for video, audio, images) ───
+  const handleDownload = async (url: string | null, filename: string) => {
     if (!url) {
-      toast({ title: "URL tidak tersedia", description: "Link video tidak ditemukan.", variant: "destructive" });
+      toast({ title: "URL tidak tersedia", description: "Link tidak ditemukan.", variant: "destructive" });
       return;
     }
-    toast({ title: "Memulai download video...", description: filename });
-    try {
-      const response = await fetch(url, { method: "GET" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-      toast({ title: "Download dimulai!", description: filename });
-    } catch (err) {
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast({ title: "Dibuka di tab baru", description: "Tekan Ctrl+S untuk menyimpan video." });
-    }
-  };
+    toast({ title: "Memulai download...", description: filename });
 
-  const handleAudioDownload = async (url: string | null, filename: string) => {
-    if (!url) {
-      toast({ title: "URL tidak tersedia", description: "Link audio tidak ditemukan.", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Memulai download audio...", description: filename });
     try {
+      // Strategy 1: Fetch as blob (direct download)
       const response = await fetch(url, { method: "GET" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
@@ -59,27 +36,19 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
       toast({ title: "Download dimulai!", description: filename });
     } catch (err) {
+      console.warn("[Download] Fetch gagal, trying <a download>:", err);
+
+      // Strategy 2: <a download> without target="_blank" (direct download)
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
-      link.target = "_blank";
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast({ title: "Membuka link audio...", description: "Audio akan otomatis tersimpan." });
-    }
-  };
 
-  const handleImageDownload = (url: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Download dimulai!", description: filename });
+      toast({ title: "Memulai download...", description: filename });
+    }
   };
 
   const isSlideshow = result.images.length > 0;
@@ -101,21 +70,35 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
-            {/* Strategy 1: Video preview (most reliable) */}
-            {result.video && !isSlideshow ? (
+            {/* VIDEO: Show first frame using <video> tag */}
+            {hasVideo && result.video ? (
               <video
                 src={result.video}
-                poster={result.cover || undefined}
                 className="h-full w-full object-cover"
                 preload="metadata"
-                playsInline
                 muted
-                loop
-                onLoadedData={() => console.log("[Video Preview] Loaded")}
-                onError={() => console.warn("[Video Preview] Failed to load")}
+                playsInline
+                onLoadedData={(e) => {
+                  console.log("[Video Preview] First frame loaded");
+                  // Pause at first frame
+                  e.currentTarget.currentTime = 0.1;
+                }}
+              />
+            ) : isSlideshow && result.images[0] ? (
+              /* SLIDESHOW: Show first image as thumbnail */
+              <img
+                src={result.images[0]}
+                alt="Thumbnail"
+                className="h-full w-full object-cover"
+                loading="eager"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  console.warn("[Slideshow Thumb] Failed:", result.images[0]);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             ) : result.cover ? (
-              /* Strategy 2: Cover image */
+              /* Fallback: API cover image */
               <img
                 src={result.cover}
                 alt="Thumbnail"
@@ -123,14 +106,14 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                 referrerPolicy="no-referrer"
                 loading="eager"
                 onError={(e) => {
-                  console.warn("[Cover] Failed to load:", result.cover);
+                  console.warn("[Cover] Failed:", result.cover);
                   e.currentTarget.style.display = 'none';
                 }}
               />
             ) : null}
 
-            {/* Strategy 3: Placeholder (always visible as fallback) */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${result.cover || result.video ? 'bg-background/40' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
+            {/* Overlay: always visible */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${(hasVideo && result.video) || (isSlideshow && result.images[0]) || result.cover ? 'bg-background/30' : 'bg-gradient-to-br from-primary/20 to-accent/20'}`}>
               {isSlideshow ? (
                 <Image className="h-10 w-10 text-foreground drop-shadow-md" />
               ) : (
@@ -173,7 +156,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             {hasVideo && (
               <Button
                 size="lg"
-                onClick={() => handleVideoDownload(result.video, videoFileName)}
+                onClick={() => handleDownload(result.video, videoFileName)}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-primary font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <FileVideo className="mr-2 h-4 w-4" />
@@ -185,7 +168,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
             {hasAudio && (
               <Button
                 size="lg"
-                onClick={() => handleAudioDownload(result.audio, audioFileName)}
+                onClick={() => handleDownload(result.audio, audioFileName)}
                 className="h-11 w-full rounded-xl border-2 border-foreground bg-accent font-black uppercase tracking-wide text-accent-foreground shadow-[3px_3px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
               >
                 <Volume2 className="mr-2 h-4 w-4" />
@@ -217,7 +200,7 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      onClick={() => handleImageDownload(img, slideFileName)}
+                      onClick={() => handleDownload(img, slideFileName)}
                       className="group relative flex-shrink-0 w-32 h-40 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[2px_2px_0px_0px_hsl(var(--foreground))] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_hsl(var(--foreground))] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none snap-start"
                     >
                       <img src={img} alt={`Slide ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
