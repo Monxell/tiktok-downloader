@@ -13,12 +13,18 @@ interface DownloadCardProps {
 const DownloadCard = ({ result }: DownloadCardProps) => {
   const { toast } = useToast();
   const [capturedThumbnail, setCapturedThumbnail] = useState<string | null>(null);
+  const [thumbError, setThumbError] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // ─── CAPTURE VIDEO FRAME FOR THUMBNAIL ──────────────────
+  const isSlideshow = result.images.length > 0;
+  const hasVideo = !!result.video && !isSlideshow;
+  const hasAudio = !!result.audio;
+
+  // ─── CAPTURE VIDEO FRAME (FALLBACK ONLY) ──────────────────
   useEffect(() => {
-    if (!result.video || result.images.length > 0) return; // Skip slideshows
+    if (!result.video || result.images.length > 0) return;
+    if (result.cover) return; // Skip kalau API udah kasih cover
 
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
@@ -27,11 +33,30 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     video.playsInline = true;
     video.preload = "metadata";
 
+    // Attach ke DOM (hidden) biar mobile browser mau load
+    video.style.position = "absolute";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    document.body.appendChild(video);
+
+    let cleaned = false;
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      video.pause();
+      video.src = "";
+      video.load();
+      if (video.parentNode) document.body.removeChild(video);
+    };
+
     video.onloadeddata = () => {
       try {
-        video.currentTime = 0.5; // Seek to 0.5s for a good frame
+        video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
       } catch {
-        // Some browsers don't support setting currentTime before play
+        cleanup();
       }
     };
 
@@ -43,25 +68,38 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          setCapturedThumbnail(dataUrl);
-          console.log("[Canvas] Frame captured successfully");
+          // Validasi: cek apakah canvas benar-benar ada pixel (bukan blank)
+          const pixel = ctx.getImageData(0, 0, 1, 1).data;
+          const isBlank = pixel[3] === 0; // alpha 0 = transparent
+          if (!isBlank) {
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            setCapturedThumbnail(dataUrl);
+          }
         }
       } catch (err) {
-        console.warn("[Canvas] Failed to capture frame:", err);
+        console.warn("[Canvas] Capture failed:", err);
+      } finally {
+        cleanup();
       }
     };
 
     video.onerror = () => {
-      console.warn("[Canvas] Video failed to load for frame capture");
+      console.warn("[Video] Failed to load for thumbnail");
+      cleanup();
     };
 
-    // Cleanup
-    return () => {
-      video.src = "";
-      video.load();
-    };
-  }, [result.video, result.images.length]);
+    video.load();
+
+    return cleanup;
+  }, [result.video, result.images.length, result.cover]);
+
+  // ─── PRIORITAS THUMBNAIL ─────────────────────────────────
+  // API cover paling reliable. Canvas cuma fallback.
+  const thumbnailSrc = result.cover || capturedThumbnail || (isSlideshow ? result.images[0] : null);
+  const hasThumbnail = !!thumbnailSrc && !thumbError;
+
+  const videoFileName = generateFileName("tikmon", "mp4");
+  const audioFileName = generateFileName("tikmon_audio", "mp3");
 
   const handleDownload = async (url: string | null, filename: string) => {
     if (!url) {
@@ -90,17 +128,6 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
     }
   };
 
-  const isSlideshow = result.images.length > 0;
-  const hasVideo = !!result.video && !isSlideshow;
-  const hasAudio = !!result.audio;
-
-  // Determine thumbnail source: captured frame > API cover > images[0] > none
-  const thumbnailSrc = result.cover || capturedThumbnail || (isSlideshow ? result.images[0] : null);
-  const hasThumbnail = !!thumbnailSrc;
-
-  const videoFileName = generateFileName("tikmon", "mp4");
-  const audioFileName = generateFileName("tikmon_audio", "mp3");
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -113,21 +140,21 @@ const DownloadCard = ({ result }: DownloadCardProps) => {
         <div className="flex-shrink-0">
           <div className="relative mx-auto h-52 w-36 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-[4px_4px_0px_0px_hsl(var(--foreground))] md:h-60 md:w-44">
 
-            {/* Thumbnail: captured frame / API cover / first image */}
-            {thumbnailSrc ? (
+            {/* Thumbnail Image */}
+            {hasThumbnail ? (
               <img
                 src={thumbnailSrc}
                 alt="Thumbnail"
                 className="h-full w-full object-cover"
                 loading="eager"
-                onError={(e) => {
-                  console.warn("[Thumbnail] Failed to load:", thumbnailSrc.substring(0, 50));
-                  e.currentTarget.style.display = 'none';
+                onError={() => {
+                  console.warn("[Thumbnail] Failed to load:", thumbnailSrc?.substring(0, 60));
+                  setThumbError(true);
                 }}
               />
             ) : null}
 
-            {/* Placeholder — ONLY when no thumbnail */}
+            {/* Placeholder — muncul kalau no thumbnail ATAU image error */}
             {!hasThumbnail && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-accent/20">
                 {isSlideshow ? (
